@@ -22,7 +22,8 @@ export function createHud() {
     scope: $('btn-scope'),
     fire: $('btn-fire'),
     crosshair: $('crosshair'),
-    marker: $('target-marker')
+    marker: $('target-marker'),
+    hint: $('hud-hint')
   };
   /** @type {Record<string, any>} */
   const last = {};
@@ -124,7 +125,44 @@ export function createHud() {
       }
       el.marker.hidden = false;
       el.marker.style.transform = `translate(${p.x.toFixed(1)}px, ${p.y.toFixed(1)}px)`;
-      set('markerDist', el.marker, Math.round(p.dist) + ' m');
+      const dist = Math.round(p.dist) + ' m';
+      if (last.markerDist !== dist) {
+        last.markerDist = dist;
+        el.marker.dataset.dist = dist;
+      }
+    },
+    /** Crosshair turns green when it is on the target. */
+    onTarget(on) {
+      if (last.onTarget !== on) {
+        last.onTarget = on;
+        el.root.classList.toggle('on-target', on);
+      }
+    },
+    /**
+     * Tutorial hint: a text bubble pointing at a button (or the screen centre when id is null).
+     * @param {string | null} text
+     * @param {string | null} [targetId]
+     */
+    hint(text, targetId) {
+      const node = el.hint;
+      const key = text + '|' + targetId;
+      if (last.hint === key) return;
+      last.hint = key;
+      for (const b of el.root.querySelectorAll('.pulse')) b.classList.remove('pulse');
+      if (!text) {
+        node.hidden = true;
+        return;
+      }
+      node.hidden = false;
+      node.textContent = text;
+      const target = targetId ? document.getElementById(targetId) : null;
+      if (target) target.classList.add('pulse');
+      const r = target ? target.getBoundingClientRect() : null;
+      const x = r ? r.left + r.width / 2 : window.innerWidth / 2;
+      const y = r ? r.top : window.innerHeight / 2 + 40;
+      node.dataset.side = r && x > window.innerWidth * 0.6 ? 'right' : r && x < window.innerWidth * 0.4 ? 'left' : 'center';
+      node.style.left = x + 'px';
+      node.style.top = y + 'px';
     },
     /** Hides everything for the bullet cam. */
     cinematic(on) {
@@ -149,6 +187,8 @@ export function createHud() {
       el.intel.classList.remove('on');
       el.flash.classList.remove('on');
       el.marker.hidden = true;
+      el.hint.hidden = true;
+      last.hint = '';
       el.root.classList.remove('cinematic');
       last.cinematic = false;
     }

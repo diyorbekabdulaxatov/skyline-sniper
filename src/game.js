@@ -71,10 +71,8 @@ export async function createGame(opts) {
   camera.add(rifleView);
 
   // Bullet for the bullet cam.
-  const bulletMesh = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.012, 0.016, 0.06, 10).rotateX(Math.PI / 2),
-    new THREE.MeshStandardMaterial({ color: '#c79a4a', metalness: 0.9, roughness: 0.25 })
-  );
+  // Bullet for the bullet cam: a boat-tail spitzer, drawn about four times real size so it reads on screen.
+  const bulletMesh = makeBullet();
   bulletMesh.visible = false;
   scene.add(bulletMesh);
   const trail = makeTrail(scene);
@@ -126,7 +124,8 @@ export async function createGame(opts) {
       result: null,
       killShot: null,
       timeScale: 1,
-      cam: null
+      cam: null,
+      onTarget: false
     };
   }
 
@@ -208,7 +207,7 @@ export async function createGame(opts) {
     // Bullet cam when this shot will kill the target.
     if (settings.bulletCam && willHitTarget(b)) {
       s.mode = 'bulletcam';
-      s.timeScale = 0.045;
+      s.timeScale = 0.03;
       s.cam = { bullet: b, hold: -1 };
       bulletMesh.visible = true;
       hud.cinematic(true);
@@ -421,8 +420,28 @@ export async function createGame(opts) {
     rifleView.rotation.x = s.recoil * 2.5;
   }
 
+  /** Whether the centre of the view is on the target's body (ignores bullet drop). */
+  function aimOnTarget() {
+    const t = crowd.target;
+    if (!t.alive || t.mode === 'gone') return false;
+    const base = t.root.position.y;
+    tmpV.set(t.x, base + 0.935 * t.h, t.z).project(camera);
+    const headX = tmpV.x;
+    const headY = tmpV.y;
+    if (tmpV.z > 1) return false;
+    tmpV.set(t.x, base + 0.05 * t.h, t.z).project(camera);
+    const footY = tmpV.y;
+    const height = Math.abs(headY - footY);
+    const halfWidth = (height / 0.9) * 0.17 * (view.h / view.w);
+    const top = Math.max(headY, footY) + height * 0.07;
+    const bottom = Math.min(headY, footY);
+    return Math.abs(headX) < halfWidth && 0 < top && 0 > bottom;
+  }
+
   function updateMarker() {
     const t = crowd.target;
+    s.onTarget = s.mode === 'playing' && aimOnTarget();
+    hud.onTarget(s.onTarget);
     if (!settings.markers || !t.alive || t.mode === 'gone' || s.mode !== 'playing') {
       hud.marker(null);
       return;
@@ -537,15 +556,19 @@ export async function createGame(opts) {
       bulletMesh.position.set(b.x, b.y, b.z);
       bulletMesh.lookAt(b.x + tmpDir.x, b.y + tmpDir.y, b.z + tmpDir.z);
       tmpRight.crossVectors(tmpDir, new THREE.Vector3(0, 1, 0)).normalize();
+      // Close behind and beside the bullet, with a slow drift around it.
+      c.spin = (c.spin || 0) + realDt * 0.5;
+      const side = 0.16 + Math.sin(c.spin) * 0.04;
       camera.position.set(
-        b.x - tmpDir.x * 1.4 + tmpRight.x * 0.35,
-        b.y - tmpDir.y * 1.4 + 0.22,
-        b.z - tmpDir.z * 1.4 + tmpRight.z * 0.35
+        b.x - tmpDir.x * 0.42 + tmpRight.x * side,
+        b.y - tmpDir.y * 0.42 + 0.07,
+        b.z - tmpDir.z * 0.42 + tmpRight.z * side
       );
-      camera.lookAt(b.x + tmpDir.x * 4, b.y + tmpDir.y * 4, b.z + tmpDir.z * 4);
-      setFov(40);
+      camera.lookAt(b.x + tmpDir.x * 3, b.y + tmpDir.y * 3, b.z + tmpDir.z * 3);
+      bulletMesh.rotateZ(realDt * 6);
+      setFov(36);
       // Speed up a little in the middle of long flights, slow down near the end.
-      s.timeScale = Math.min(0.12, s.timeScale + realDt * 0.03);
+      s.timeScale = Math.min(0.1, s.timeScale + realDt * 0.025);
     } else if (c.hold >= 0) {
       bulletMesh.visible = false;
       const f = c.focus;
@@ -611,7 +634,7 @@ export async function createGame(opts) {
     renderer.render(scene, camera);
     const showScope = s.scoped && s.mode === 'playing' && s.fov < BASE_FOV * 0.8;
     if (showScope) {
-      drawScope(scopeCtx, view.w, view.h, view.dpr, s.fov);
+      drawScope(scopeCtx, view.w, view.h, view.dpr, s.fov, { onTarget: s.onTarget, zoom: s.zoom });
       scopeDrawn = true;
     } else if (scopeDrawn) {
       clearScope(scopeCtx, view.w, view.h, view.dpr);
@@ -750,6 +773,23 @@ export async function createGame(opts) {
       }
     }
   };
+}
+
+/** A copper boat-tail bullet with a cannelure, tip pointing along +z, centred on its middle. */
+function makeBullet() {
+  const k = 4;
+  const r = 0.0039 * k;
+  const len = 0.032 * k;
+  const profile = [
+    [0, 0], [r * 0.82, 0], [r, len * 0.12], [r, len * 0.4], [r * 0.93, len * 0.43],
+    [r, len * 0.46], [r, len * 0.55], [r * 0.72, len * 0.82], [r * 0.3, len * 0.97], [0, len]
+  ].map(([x, y]) => new THREE.Vector2(x, y));
+  const geo = new THREE.LatheGeometry(profile, 24);
+  geo.translate(0, -len / 2, 0);
+  geo.rotateX(Math.PI / 2);
+  const mesh = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ color: '#c6834f', metalness: 1, roughness: 0.28, envMapIntensity: 1.6 }));
+  mesh.visible = false;
+  return mesh;
 }
 
 /** Faint vapour trail behind the bullet. */

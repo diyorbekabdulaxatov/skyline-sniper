@@ -46,10 +46,15 @@ button { cursor: pointer; }
   position: absolute; top: calc(8px + var(--st)); left: calc(14px + var(--sl)); right: calc(14px + var(--sr));
   display: flex; justify-content: space-between; align-items: flex-start; gap: 12px;
 }
-.objective { display: flex; flex-direction: column; gap: 2px; text-shadow: 0 1px 3px rgba(0,0,0,.7); }
-.objective b { font: 700 11px/1 var(--f-display); letter-spacing: .18em; text-transform: uppercase; color: var(--accent); }
-.objective span { font: 700 19px/1.1 var(--f-display); letter-spacing: .02em; }
-#hud-timer { font: 700 22px/1 var(--f-display); font-variant-numeric: tabular-nums; }
+.objective {
+  position: absolute; top: calc(6px + var(--st)); left: 50%; transform: translateX(-50%);
+  display: flex; align-items: center; gap: 12px; padding: 6px 16px; border-radius: 10px;
+  background: var(--glass); border: 1px solid var(--line); backdrop-filter: blur(6px); white-space: nowrap;
+}
+.objective b { font: 700 10px/1 var(--f-display); letter-spacing: .18em; text-transform: uppercase; color: var(--accent); }
+.objective span { font: 700 18px/1.1 var(--f-display); letter-spacing: .04em; text-transform: uppercase; }
+#hud-timer { font: 700 18px/1 var(--f-display); font-variant-numeric: tabular-nums; color: var(--muted); }
+#hud-timer:empty { display: none; }
 #hud-timer.urgent { color: var(--danger); }
 .readouts { display: flex; gap: 14px; align-items: flex-start; }
 .stat { display: flex; flex-direction: column; gap: 2px; text-shadow: 0 1px 3px rgba(0,0,0,.7); }
@@ -58,13 +63,13 @@ button { cursor: pointer; }
 .stat small { font-size: 12px; color: var(--muted); margin-left: 2px; }
 #btn-pause { width: 40px; height: 40px; border-radius: 10px; border: 1px solid var(--line); background: var(--glass); font-weight: 600; }
 #hud-intel {
-  position: absolute; top: calc(8px + var(--st)); left: 50%; transform: translate(-50%, -6px);
-  width: min(40vw, 440px); padding: 8px 12px; border-radius: 10px;
+  position: absolute; top: calc(8px + var(--st)); left: calc(14px + var(--sl)); transform: translateY(-6px);
+  width: min(30vw, 330px); padding: 8px 12px; border-radius: 10px;
   background: var(--glass); border: 1px solid var(--line); backdrop-filter: blur(6px);
   font-size: 13px; line-height: 1.4; opacity: 0; transition: opacity .3s, transform .3s;
 }
 #hud-intel::before { content: "INTEL"; display: block; font: 700 10px/1.3 var(--f-display); letter-spacing: .2em; color: var(--accent); }
-#hud-intel.on { opacity: 1; transform: translate(-50%, 0); }
+#hud-intel.on { opacity: 1; transform: translateY(0); }
 #hud-flash {
   position: absolute; left: 50%; bottom: calc(22px + var(--sb)); transform: translateX(-50%);
   font: 700 18px/1 var(--f-display); letter-spacing: .1em; text-transform: uppercase; white-space: nowrap;
@@ -78,16 +83,37 @@ button { cursor: pointer; }
 #crosshair::before, #crosshair::after { content: ""; position: absolute; background: rgba(255,255,255,.85); box-shadow: 0 0 2px rgba(0,0,0,.8); }
 #crosshair::before { left: 10px; top: 0; width: 2px; height: 22px; }
 #crosshair::after { top: 10px; left: 0; height: 2px; width: 22px; }
-/* JS moves the marker's top-left to the point above the target's head; the label and arrow sit above it. */
+/* JS moves the marker's origin to the point above the target's head; the red tag and its pointer sit above it. */
 #target-marker {
-  position: absolute; left: 0; top: 0; width: 60px; margin: -32px 0 0 -30px; text-align: center; pointer-events: none;
-  font: 700 12px/1 var(--f-display); color: #fff; text-shadow: 0 1px 2px rgba(0,0,0,.9); white-space: nowrap;
+  position: absolute; left: 0; top: 0; width: 84px; margin: -54px 0 0 -42px; pointer-events: none;
+  display: grid; justify-items: center; gap: 2px;
 }
 #target-marker::before {
-  content: ""; position: absolute; left: 21px; top: 16px; width: 0; height: 0;
-  border-left: 9px solid transparent; border-right: 9px solid transparent; border-top: 12px solid var(--danger);
-  filter: drop-shadow(0 1px 2px rgba(0,0,0,.7));
+  content: "TARGET"; display: block; padding: 4px 10px 3px; border-radius: 6px; background: var(--danger);
+  font: 700 15px/1 var(--f-display); letter-spacing: .12em; color: #fff; box-shadow: 0 2px 6px rgba(0,0,0,.45);
 }
+#target-marker::after {
+  content: attr(data-dist); font: 700 12px/1 var(--f-display); color: #fff; text-shadow: 0 1px 2px rgba(0,0,0,.9);
+  padding-top: 12px; background: linear-gradient(var(--danger), var(--danger)) center 0 / 0 0 no-repeat;
+  position: relative;
+}
+#target-marker i { display: none; }
+#hud.on-target #crosshair::before, #hud.on-target #crosshair::after { background: #46dc78; }
+#hud-hint {
+  position: absolute; z-index: 5; transform: translate(-50%, calc(-100% - 18px)); max-width: 260px;
+  padding: 9px 13px; border-radius: 10px; background: #fff; color: #111;
+  font: 700 15px/1.25 var(--f-display); letter-spacing: .02em; text-align: center; pointer-events: none;
+  box-shadow: 0 6px 18px rgba(0,0,0,.4); animation: bob 1.2s ease-in-out infinite;
+}
+#hud-hint::after { content: ""; position: absolute; left: 50%; bottom: -9px; margin-left: -9px; border: 9px solid transparent; border-bottom: 0; border-top-color: #fff; }
+#hud-hint[data-side="right"] { transform: translate(-85%, calc(-100% - 18px)); }
+#hud-hint[data-side="right"]::after { left: 85%; }
+#hud-hint[data-side="left"] { transform: translate(-15%, calc(-100% - 18px)); }
+#hud-hint[data-side="left"]::after { left: 15%; }
+@keyframes bob { 50% { margin-top: -6px; } }
+.pad.pulse { box-shadow: 0 0 0 0 rgba(255,178,62,.8); animation: pulse 1.2s ease-out infinite; }
+@keyframes pulse { to { box-shadow: 0 0 0 18px rgba(255,178,62,0); } }
+
 
 .pad {
   position: absolute; display: grid; place-items: center; border-radius: 50%;
@@ -176,6 +202,22 @@ button { cursor: pointer; }
 .field output { font-variant-numeric: tabular-nums; }
 .field input[type="checkbox"] { width: 20px; height: 20px; accent-color: var(--accent); }
 .settings-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 20px; }
+.wallet {
+  position: fixed; top: calc(10px + var(--st)); right: calc(14px + var(--sr)); display: flex; gap: 10px; z-index: 2;
+}
+.chip { display: flex; align-items: center; gap: 8px; padding: 6px 12px; border-radius: 999px; background: var(--glass-strong); border: 1px solid var(--line); font: 700 16px/1 var(--f-display); font-variant-numeric: tabular-nums; }
+.chip b { color: var(--accent); font-size: 12px; letter-spacing: .14em; }
+.level-bar { width: 70px; height: 5px; border-radius: 3px; background: rgba(255,255,255,.15); overflow: hidden; }
+.level-bar i { display: block; height: 100%; width: 0; background: var(--accent); }
+.rewards { display: grid; gap: 4px; margin: 0; padding: 0; list-style: none; font-size: 13px; }
+.rewards li { display: flex; justify-content: space-between; color: var(--muted); }
+.rewards li span:last-child { color: var(--text); font-variant-numeric: tabular-nums; }
+.rewards li.total { border-top: 1px solid var(--line); padding-top: 6px; margin-top: 2px; color: var(--accent); font: 700 17px/1 var(--f-display); letter-spacing: .06em; }
+.rewards li.total span:last-child { color: var(--accent); }
+.credits { max-height: 52vh; overflow-y: auto; font-size: 12px; line-height: 1.5; color: var(--muted); touch-action: pan-y; padding-right: 6px; }
+.credits h3 { font: 700 15px/1.2 var(--f-display); color: var(--text); letter-spacing: .06em; text-transform: uppercase; margin: 10px 0 4px; }
+.credits p { margin: 0 0 6px; }
+.credits a { color: var(--accent); }
 .results-stars { font-size: 34px; letter-spacing: .12em; }
 .results-stars[data-tone="good"] { color: var(--accent); }
 .results-stars[data-tone="bad"] { color: var(--muted); }
@@ -204,8 +246,9 @@ button { cursor: pointer; }
 <canvas id="scope" aria-hidden="true"></canvas>
 
 <div id="hud" hidden>
+  <div class="objective"><b>Objective</b><span id="hud-objective">Eliminate the target</span><span id="hud-timer"></span></div>
   <div class="hud-top">
-    <div class="objective"><b>Objective</b><span id="hud-objective">Eliminate the target</span><span id="hud-timer"></span></div>
+    <div></div>
     <div class="readouts">
       <div class="stat"><b>Wind</b><span><span id="hud-wind-arrow">&rarr;</span> <span id="hud-wind">0.0 m/s</span></span></div>
       <div class="stat"><b>Range</b><span><span id="hud-range">---</span><small>m</small></span></div>
@@ -216,6 +259,7 @@ button { cursor: pointer; }
   <div id="hud-flash" role="status" aria-live="polite"></div>
   <div id="crosshair"></div>
   <div id="target-marker" hidden></div>
+  <div id="hud-hint" hidden></div>
   <div id="zoom-wrap" hidden>
     <div id="zoom-label">6.0&times;</div>
     <input id="zoom" type="range" min="2" max="16" step="0.1" value="6" aria-label="Scope magnification">
@@ -236,6 +280,10 @@ button { cursor: pointer; }
 </section>
 
 <section id="screen-menu" class="screen" hidden>
+  <div class="wallet">
+    <div class="chip"><b>LVL</b><span id="wallet-level">1</span><div class="level-bar"><i id="wallet-xp"></i></div></div>
+    <div class="chip"><b>$</b><span id="wallet-cash">0</span></div>
+  </div>
   <div class="title-block">
     <h1 class="brand">Skyline<br><em>Sniper</em></h1>
     <p class="tagline">Find the target. Read the wind. Take the shot.</p>
@@ -294,7 +342,26 @@ button { cursor: pointer; }
       <div class="field"><label for="set-sound">Sound</label><input id="set-sound" type="checkbox" checked></div>
       <div class="field"><label for="set-trail">Bullet trail</label><input id="set-trail" type="checkbox" checked></div>
     </div>
-    <div class="actions"><button id="btn-settings-done" class="btn btn-primary" type="button">Done</button></div>
+    <div class="actions"><button id="btn-settings-done" class="btn btn-primary" type="button">Done</button><button id="btn-credits" class="btn btn-quiet" type="button">Credits</button></div>
+  </div>
+</section>
+
+<section id="screen-credits" class="screen" hidden>
+  <div class="panel">
+    <h2>Credits</h2>
+    <div class="credits">
+      <p>Skyline Sniper is built with Three.js. Thank you to the artists who share their work.</p>
+      <h3>People</h3>
+      <p>Microsoft Rocketbox Avatar Library and animations, Copyright (c) 2020 Microsoft, MIT License.
+        <a href="https://github.com/microsoft/Microsoft-Rocketbox" target="_blank" rel="noopener">github.com/microsoft/Microsoft-Rocketbox</a></p>
+      <h3>Models (CC BY 4.0)</h3>
+      <p>Lowpoly Sedan &amp; Wagon by Han66st. Low Poly &amp; Game Ready Traffic Light by YourLocalJavaCarDealer. Tree low poly lowpoly by 00amza. All from Sketchfab, licensed under <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a>.</p>
+      <h3>Environment (CC0)</h3>
+      <p>Sky, textures and street props from <a href="https://polyhaven.com" target="_blank" rel="noopener">Poly Haven</a>. Rifle and fallback character by <a href="https://quaternius.com" target="_blank" rel="noopener">Quaternius</a>.</p>
+      <h3>MIT License (Rocketbox)</h3>
+      <p>Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions: The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software. THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED.</p>
+    </div>
+    <div class="actions"><button id="btn-credits-back" class="btn btn-primary" type="button">Back</button></div>
   </div>
 </section>
 
@@ -309,6 +376,7 @@ button { cursor: pointer; }
       <div><b>Distance</b><span id="res-distance">---</span></div>
       <div><b>Headshot</b><span id="res-head">No</span></div>
     </div>
+    <ul class="rewards" id="results-rewards"></ul>
     <div class="actions">
       <button id="btn-retry" class="btn btn-primary" type="button">Play again</button>
       <button id="btn-results-menu" class="btn btn-quiet" type="button">Menu</button>

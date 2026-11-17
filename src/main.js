@@ -7,12 +7,14 @@ import { createGame } from './game.js';
 import { renderPortrait } from './people.js';
 import { HARBOR } from './missions.js';
 import { loadSettings, saveSettings, loadBest, saveBest } from './settings.js';
+import { loadProgress, saveProgress, levelOf, rewardFor } from './progress.js';
 
 const $ = (id) => /** @type {HTMLElement} */ (document.getElementById(id));
-const SCREENS = ['loading', 'menu', 'pause', 'settings', 'results'];
+const SCREENS = ['loading', 'menu', 'pause', 'settings', 'credits', 'results'];
 
 let settings = loadSettings();
 let settingsReturn = 'menu';
+let progress = loadProgress();
 
 const audio = createAudio();
 audio.setEnabled(settings.sound);
@@ -57,6 +59,14 @@ for (const text of HARBOR.stars) {
   starList.appendChild(li);
 }
 showBest();
+showWallet();
+
+function showWallet() {
+  const lv = levelOf(progress.xp);
+  $('wallet-level').textContent = String(lv.level);
+  $('wallet-xp').style.width = Math.round(lv.fraction * 100) + '%';
+  $('wallet-cash').textContent = progress.cash.toLocaleString('en-US');
+}
 
 function showBest() {
   const best = loadBest(HARBOR.id);
@@ -109,6 +119,19 @@ function startMission() {
   show(null);
   game.begin();
 }
+
+// First contract only: hints that walk the player through scope, aim and fire.
+setInterval(() => {
+  if (!game || progress.tutorialDone || location.hash === '#selftest') return;
+  const st = game.debug.state();
+  if (st.mode !== 'playing' || st.shots > 0 || st.result !== null) {
+    hud.hint(null);
+    return;
+  }
+  if (!st.scoped) hud.hint('Tap SCOPE to look through the scope', 'btn-scope');
+  else if (!st.onTarget) hud.hint('Drag to put the cross on Victor Hale', null);
+  else hud.hint('Hold your breath, then press FIRE', 'btn-fire');
+}, 200);
 
 // ---------- in-game buttons ----------
 
@@ -200,6 +223,8 @@ function openSettings(from) {
 form.sensitivity.addEventListener('input', () => {
   form.sensitivityOut.textContent = parseFloat(form.sensitivity.value).toFixed(1) + '×';
 });
+$('btn-credits').addEventListener('click', () => show('credits'));
+$('btn-credits-back').addEventListener('click', () => show('settings'));
 $('btn-settings-done').addEventListener('click', async () => {
   const wantsGyro = form.gyro.value !== 'off' && settings.gyro === 'off';
   settings = {
@@ -243,6 +268,31 @@ function showResults(r) {
     const best = loadBest(HARBOR.id);
     if (best === null || r.stars > best) saveBest(HARBOR.id, r.stars);
   }
+  const pay = rewardFor(r);
+  const levelBefore = levelOf(progress.xp).level;
+  progress.cash += pay.cash;
+  progress.xp += pay.xp;
+  if (win) {
+    progress.contracts++;
+    progress.tutorialDone = true;
+  }
+  saveProgress(progress);
+  showWallet();
+  const list = $('results-rewards');
+  list.textContent = '';
+  const row = (label, value, cls) => {
+    const li = document.createElement('li');
+    if (cls) li.className = cls;
+    const a = document.createElement('span');
+    a.textContent = label;
+    const b = document.createElement('span');
+    b.textContent = value;
+    li.append(a, b);
+    list.appendChild(li);
+  };
+  for (const l of pay.lines) row(l.label, '$' + l.cash, '');
+  const levelAfter = levelOf(progress.xp).level;
+  row(win ? 'Paid' : 'No payment', '$' + pay.cash + '  \u00b7  +' + pay.xp + ' XP' + (levelAfter > levelBefore ? '  \u00b7  Level ' + levelAfter + '!' : ''), 'total');
   setTimeout(() => show('results'), win ? 300 : 0);
 }
 $('btn-retry').addEventListener('click', () => game.restart());
