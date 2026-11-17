@@ -30,3 +30,7 @@ Licence: https://creativecommons.org/licenses/by/4.0/
 | `rifle.glb` | Sniper Rifle (Ultimate Guns Pack) | https://poly.pizza/bundle/Ultimate-Guns-Pack-cpgUfI4t2F |
 
 The sky, ground textures and street props are CC0 assets from Poly Haven, listed in `assets.json` and fetched during the build.
+
+### City textures (Poly Haven, CC0)
+
+The golden-hour sky is "Kloppenheim 06 (Pure Sky)". The brick and plaster walls use "Red Brick 03", "Brick Wall 006" and "Painted Plaster Wall". All shop signs, billboards and brand names in the city are invented for this game.

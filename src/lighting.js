@@ -1,9 +1,19 @@
 // @ts-check
-// Sky, image-based lighting, sun with shadows, and atmosphere (fog). The city and lighting
-// work owns this file; game.js only calls setupLighting() and uses the returned sun.
+// Golden-hour lighting: an HDR sunset sky (image-based light and background), a warm low sun
+// that casts shadows, warm haze and a lens flare. The sky panorama is turned so its sun sits
+// to the player's left-front (west-north-west), and the shadow-casting light is placed on the
+// sun found in the HDR data, so light and sky always agree.
+// game.js only calls setupLighting() and resizes the returned sun's shadow map by quality.
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import { Lensflare, LensflareElement } from 'three/addons/objects/Lensflare.js';
 import { loadSky } from './assets.js';
+
+/** Where the sun should appear: angle about y from +z toward +x (the player looks along -z). */
+const SUN_AZIMUTH = Math.PI + 1.15;
+/** The shadow light never goes lower than this, so the plaza is not lost in long shadows. */
+const MIN_LIGHT_ELEVATION = 0.26;
+const PLAZA = new THREE.Vector3(0, 0, -70);
 
 /**
  * @param {THREE.Scene} scene
@@ -12,28 +22,141 @@ import { loadSky } from './assets.js';
  * @returns {Promise<{ sun: THREE.DirectionalLight }>}
  */
 export async function setupLighting(scene, renderer, manifest) {
-  scene.fog = new THREE.FogExp2('#b9c4cf', 0.0011);
+  renderer.toneMappingExposure = 0.92;
+  scene.fog = new THREE.FogExp2('#c9b39e', 0.00085);
+
+  // Direction toward the sun in the world, after the sky is turned.
+  const sunDir = new THREE.Vector3(Math.sin(SUN_AZIMUTH), 0.12, Math.cos(SUN_AZIMUTH)).normalize();
 
   const pmrem = new THREE.PMREMGenerator(renderer);
   const sky = await loadSky(manifest);
   if (sky) {
+    const found = findSun(sky);
+    if (found) {
+      const texAzimuth = Math.atan2(found.x, found.z);
+      const turn = texAzimuth - SUN_AZIMUTH;
+      scene.backgroundRotation.set(0, turn, 0);
+      scene.environmentRotation.set(0, turn, 0);
+      sunDir.copy(found).applyAxisAngle(new THREE.Vector3(0, 1, 0), -turn).normalize();
+    }
     scene.background = sky;
     scene.environment = pmrem.fromEquirectangular(sky).texture;
   } else {
-    scene.background = new THREE.Color('#a9c1d9');
+    scene.background = new THREE.Color('#d8b89a');
     scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
   }
   pmrem.dispose();
+  scene.environmentIntensity = 0.9;
 
-  scene.add(new THREE.HemisphereLight('#d6e6f5', '#5d544b', 0.55));
-  const sun = new THREE.DirectionalLight('#fff1dc', 2.8);
-  sun.position.set(130, 210, 40);
-  sun.target.position.set(0, 0, -70);
+  scene.add(new THREE.HemisphereLight('#f3d6b8', '#4a3d36', 0.35));
+
+  // Shadow light: same azimuth as the sky's sun, raised to a playable minimum elevation.
+  const lightDir = sunDir.clone();
+  const elevation = Math.asin(Math.min(1, Math.max(-1, lightDir.y)));
+  if (elevation < MIN_LIGHT_ELEVATION) {
+    const flat = Math.hypot(lightDir.x, lightDir.z) || 1;
+    lightDir.set(
+      (lightDir.x / flat) * Math.cos(MIN_LIGHT_ELEVATION),
+      Math.sin(MIN_LIGHT_ELEVATION),
+      (lightDir.z / flat) * Math.cos(MIN_LIGHT_ELEVATION)
+    );
+  }
+  const sun = new THREE.DirectionalLight('#ffc590', 2.6);
+  sun.position.copy(PLAZA).addScaledVector(lightDir, 320);
+  sun.target.position.copy(PLAZA);
   sun.castShadow = true;
   const sc = sun.shadow.camera;
-  sc.left = -120; sc.right = 120; sc.top = 120; sc.bottom = -120; sc.near = 20; sc.far = 520;
-  sun.shadow.bias = -0.0004;
-  sun.shadow.normalBias = 0.03;
+  sc.left = -150; sc.right = 150; sc.top = 150; sc.bottom = -150; sc.near = 20; sc.far = 700;
+  sun.shadow.bias = -0.0005;
+  sun.shadow.normalBias = 0.04;
   scene.add(sun, sun.target);
+
+  // Lens flare on the visible sun, far away along its true direction.
+  const flareAnchor = new THREE.Object3D();
+  flareAnchor.position.copy(sunDir).multiplyScalar(3000);
+  flareAnchor.add(makeFlare());
+  scene.add(flareAnchor);
+
   return { sun };
+}
+
+/**
+ * Finds the brightest region of an equirectangular HDR texture and returns the direction to
+ * it in the texture's own frame (three's equirect convention), or null if the data is unusable.
+ * @param {THREE.Texture} tex
+ */
+function findSun(tex) {
+  const img = /** @type {any} */ (tex).image;
+  if (!img || !img.data || !img.width) return null;
+  const { data, width: w, height: h } = img;
+  const half = data instanceof Uint16Array;
+  const read = (i) => (half ? THREE.DataUtils.fromHalfFloat(data[i]) : data[i]);
+  let best = -1;
+  let bx = 0;
+  let by = 0;
+  const step = Math.max(1, Math.floor(w / 512));
+  // Only the upper half: the sun is above the horizon.
+  for (let y = 0; y < h / 2; y += step) {
+    for (let x = 0; x < w; x += step) {
+      const i = (y * w + x) * 4;
+      const lum = read(i) * 0.2126 + read(i + 1) * 0.7152 + read(i + 2) * 0.0722;
+      if (lum > best) {
+        best = lum;
+        bx = x;
+        by = y;
+      }
+    }
+  }
+  if (best <= 0) return null;
+  const u = (bx + 0.5) / w;
+  const v = 1 - (by + 0.5) / h;
+  const lat = (v - 0.5) * Math.PI;
+  const phi = (u - 0.5) * Math.PI * 2;
+  return new THREE.Vector3(Math.cos(phi) * Math.cos(lat), Math.sin(lat), Math.sin(phi) * Math.cos(lat));
+}
+
+/** Procedural flare textures: a soft glow, a ring and a hexagon ghost. */
+function makeFlare() {
+  const glow = flareTexture((g, s) => {
+    const grad = g.createRadialGradient(s / 2, s / 2, 0, s / 2, s / 2, s / 2);
+    grad.addColorStop(0, 'rgba(255,240,220,1)');
+    grad.addColorStop(0.15, 'rgba(255,200,140,0.6)');
+    grad.addColorStop(1, 'rgba(255,160,90,0)');
+    g.fillStyle = grad;
+    g.fillRect(0, 0, s, s);
+  });
+  const ring = flareTexture((g, s) => {
+    const grad = g.createRadialGradient(s / 2, s / 2, s * 0.32, s / 2, s / 2, s / 2);
+    grad.addColorStop(0, 'rgba(255,220,180,0)');
+    grad.addColorStop(0.7, 'rgba(255,210,160,0.35)');
+    grad.addColorStop(1, 'rgba(255,200,150,0)');
+    g.fillStyle = grad;
+    g.fillRect(0, 0, s, s);
+  });
+  const hex = flareTexture((g, s) => {
+    g.fillStyle = 'rgba(255,230,200,0.5)';
+    g.beginPath();
+    for (let i = 0; i < 6; i++) {
+      const a = (i / 6) * Math.PI * 2;
+      g.lineTo(s / 2 + Math.cos(a) * s * 0.45, s / 2 + Math.sin(a) * s * 0.45);
+    }
+    g.closePath();
+    g.fill();
+  });
+  const flare = new Lensflare();
+  flare.addElement(new LensflareElement(glow, 520, 0, new THREE.Color('#ffd2a0')));
+  flare.addElement(new LensflareElement(ring, 120, 0.35, new THREE.Color('#ffb070')));
+  flare.addElement(new LensflareElement(hex, 70, 0.55, new THREE.Color('#ffd8b0')));
+  flare.addElement(new LensflareElement(hex, 110, 0.8, new THREE.Color('#ffe0c0')));
+  flare.addElement(new LensflareElement(ring, 180, 1.0, new THREE.Color('#ffc890')));
+  return flare;
+}
+
+function flareTexture(draw) {
+  const c = document.createElement('canvas');
+  c.width = c.height = 128;
+  draw(c.getContext('2d'), 128);
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  return t;
 }

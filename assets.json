@@ -2,7 +2,7 @@
   "comment": "CC0 assets from Poly Haven (https://polyhaven.com), fetched and shrunk in CI by scripts/fetch-assets.mjs. Ids are Poly Haven asset ids.",
   "hdri": {
     "name": "sky",
-    "id": "kloofendal_48d_partly_cloudy_puresky",
+    "id": "kloppenheim_06_puresky",
     "res": "2k"
   },
   "textures": [
@@ -24,6 +24,21 @@
     {
       "name": "plaza",
       "id": "large_floor_tiles_02",
+      "res": "1k"
+    },
+    {
+      "name": "brick_red",
+      "id": "red_brick_03",
+      "res": "1k"
+    },
+    {
+      "name": "brick_old",
+      "id": "brick_wall_006",
+      "res": "1k"
+    },
+    {
+      "name": "plaster",
+      "id": "painted_plaster_wall",
       "res": "1k"
     }
   ],

@@ -19,6 +19,14 @@ A realistic 3D city sniper game (Three.js), Android first through Capacitor. Mai
 - `src/ballistics.js`, `src/scope.js`, `src/input.js`, `src/audio.js`, `src/settings.js`: shared with the user's earlier `silent-contract-3d` repo.
 - `assets.json` + `scripts/fetch-assets.mjs`: Poly Haven assets, fetched and optimised in CI (gltf-transform, WebP textures, meshopt).
 
+## City and lighting
+
+- `src/lighting.js`: golden-hour HDR sky. The panorama is turned so its sun sits west-north-west (`SUN_AZIMUTH`), and the shadow light is placed on the sun found in the HDR pixels, raised to at least 15 degrees. Also a lens flare and warm fog.
+- `src/city.js`: towers (`TOWERS`, procedural facades) and brick or plaster mid-rises (`BLOCKS`, photo textures from `assets.json`). The east side is kept low so the harbour shows. Cars follow `ROUTES` on the avenue, Meridian Street and the quay road. Trees, traffic lights and cars are CC-BY models from `public/models/props/`, instanced.
+- `src/blocks.js`: windows, shopfronts, awnings, invented-brand signs, rooftop clutter and billboards, collected and then built as a few instanced or merged meshes.
+- `src/harbor.js`: water, quay, pier with containers, gantry cranes, moored ship, boats. `HARBOR.quayX` (162) is the land's east edge.
+- `src/instancing.js`: bakes any glTF into one `InstancedMesh` per material. Use it for anything repeated.
+
 ## Rules
 
 - Units are metres and seconds. Axes: x east, y up, z toward the player (south); north is `-z`.
