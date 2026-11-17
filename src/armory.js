@@ -64,19 +64,6 @@ export const UPGRADES = [
   }
 ];
 
-/**
- * Contract list for the Contracts screen. Only Harbor Plaza is built; the others show what is
- * coming and what unlocks them.
- * @typedef {{ id: string, number: number, title: string, district: string, playable: boolean,
- *   needs: string | null }} ContractCard
- * @type {ContractCard[]}
- */
-export const CONTRACTS = [
-  { id: 'harbor-plaza', number: 1, title: 'Harbor Plaza', district: 'Financial District, 14:20', playable: true, needs: null },
-  { id: 'dockside', number: 2, title: 'Dockside', district: 'Container Port, 18:05', playable: false, needs: 'Complete Harbor Plaza' },
-  { id: 'rooftop-gala', number: 3, title: 'Rooftop Gala', district: 'Old Town, 21:40', playable: false, needs: 'Reach level 4' }
-];
-
 /** Current upgrade level (0 to 5) of an upgrade on a rifle. */
 export function upgradeLevel(progress, rifleId, upgradeId) {
   const u = (progress.upgrades && progress.upgrades[rifleId]) || {};

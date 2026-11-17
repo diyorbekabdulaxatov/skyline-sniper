@@ -141,6 +141,15 @@ async function loadFallback() {
   return { kind: 'fallback', id: 'man-suit', female: false, gltf, baseHeight: measure(gltf.scene).getSize(new THREE.Vector3()).y, clips };
 }
 
+/** Where shots come from (the current mission's eye); bodies fall away from it. */
+const shooter = { x: LAYOUT.eye.x, z: LAYOUT.eye.z };
+
+/** @param {{ x: number, z: number }} eye */
+export function setShooter(eye) {
+  shooter.x = eye.x;
+  shooter.z = eye.z;
+}
+
 export class Person {
   /**
    * @param {Base} base
@@ -208,6 +217,8 @@ export class Person {
     this.onArrive = null;
     /** @type {any} Procedural fall state after a fatal hit. */
     this.fall = null;
+    /** Ground height under this person, set by place(). */
+    this.groundY = LAYOUT.walkY;
   }
 
   get x() {
@@ -218,8 +229,13 @@ export class Person {
     return this.root.position.z;
   }
 
-  place(x, z, face) {
-    this.root.position.set(x, LAYOUT.walkY, z);
+  /**
+   * @param {number} x @param {number} z @param {number} [face]
+   * @param {number} [y] ground height here (pavement by default; rooftops and piers differ)
+   */
+  place(x, z, face, y) {
+    this.groundY = y === undefined ? LAYOUT.walkY : y;
+    this.root.position.set(x, this.groundY, z);
     this.root.rotation.y = face || 0;
   }
 
@@ -302,8 +318,8 @@ export class Person {
     // Rocketbox has no death clip: freeze the current pose and fall procedurally,
     // away from the shooter, with the knees giving way first.
     for (const a of Object.values(this.actions)) a.paused = true;
-    const dx = this.x - LAYOUT.eye.x;
-    const dz = this.z - LAYOUT.eye.z;
+    const dx = this.x - shooter.x;
+    const dz = this.z - shooter.z;
     const d = Math.hypot(dx, dz) || 1;
     /** @type {Record<string, THREE.Object3D>} */
     const bones = {};
@@ -346,7 +362,7 @@ export class Person {
     this.root.quaternion.copy(tip).multiply(twist).multiply(f.yaw);
     // Hips sink as the knees go, then the body lies on the ground rather than inside it.
     const sink = 0.16 * this.h * buckle * (1 - topple);
-    this.root.position.y = LAYOUT.walkY - sink + Math.sin(angle) * 0.1 * this.h;
+    this.root.position.y = this.groundY - sink + Math.sin(angle) * 0.1 * this.h;
 
     // The body's right-hand direction in the world, now (it turns as the body tips).
     this.root.updateMatrixWorld(true);
@@ -473,141 +489,79 @@ export class Person {
  * Builds everyone for the Harbor Plaza contract.
  * @param {THREE.Scene} scene
  */
-export async function createCrowd(scene) {
+/**
+ * What a scene's people setup gets to work with.
+ * @typedef {{
+ *   r: () => number, pick: (list: any[]) => any, rocketbox: Record<string, Base> | null,
+ *   avatar: (id: string) => Base, passerby: (opts?: { female?: boolean }) => Person,
+ *   make: (base: Base, look: Look, height: number) => Person, randomLook: () => Look,
+ *   MEN: string[], WOMEN: string[], rect: typeof rect, ring: typeof ring
+ * }} CrowdKit
+ * What a scene's people setup returns.
+ * @typedef {{
+ *   civilians: Person[], target: Person, targetLook: Look & { avatar?: string },
+ *   exits: { x: number, z: number }[],
+ *   panicTarget?: (target: Person) => void, update?: (dt: number) => void,
+ *   escaped: () => boolean, contact?: Person | null
+ * }} CrowdSetup
+ */
+
+/**
+ * Builds the people of a mission: loads the avatars and animations once (cached), then runs
+ * the scene's setup, which places walkers, groups, the contact and the target.
+ * @param {THREE.Scene} scene
+ * @param {(kit: CrowdKit) => CrowdSetup} setup
+ * @param {{ x: number, z: number }} eye the shooter's position, so bodies fall away from it
+ * @param {number} seed
+ */
+export async function createCrowd(scene, setup, eye, seed) {
+  setShooter(eye);
   const rocketbox = await loadRocketbox();
   const fallback = rocketbox ? null : await loadFallback();
-  const r = rng(77);
+  const r = rng(seed || 77);
   const pick = (list) => list[Math.floor(r() * list.length)];
   /** @returns {Look} */
   const randomLook = () => ({ suit: pick(SUITS), trousers: pick(TROUSERS), skin: pick(SKINS), hair: pick(HAIR), tie: pick(['#2a3b5c', '#5b2a2a', '#3c3c3c', '#7d6a3a']) });
-  /** A random passer-by: about one in four is a woman. */
-  const randomBase = () => {
-    if (!rocketbox) return { base: fallback, female: false };
-    const female = r() < 0.27;
-    return { base: rocketbox[pick(female ? WOMEN : MEN)], female };
-  };
+  const avatar = (id) => (rocketbox && rocketbox[id]) || fallback || rocketbox[MEN[0]];
   const make = (base, look, height) => {
     const p = new Person(base, look, height);
     scene.add(p.root);
     return p;
   };
-  const passerby = () => {
-    const { base, female } = randomBase();
+  /** A random passer-by: about one in four is a woman unless asked. */
+  const passerby = (opts = {}) => {
+    const female = opts.female !== undefined ? opts.female : r() < 0.27;
+    const base = rocketbox ? rocketbox[pick(female ? WOMEN : MEN)] : fallback;
     return make(base, randomLook(), female ? 1.6 + r() * 0.12 : 1.7 + r() * 0.17);
   };
-
-  /** @type {Person[]} */
-  const civilians = [];
-  const routes = [
-    { pts: rect(-34, -32, 34, -98), loop: true },
-    { pts: [{ x: -34, z: -32 }, { x: -15, z: -50 }, { x: -30, z: -98 }, { x: 30, z: -98 }, { x: 15, z: -74 }, { x: 34, z: -32 }], loop: true },
-    { pts: ring(LAYOUT.fountain.x, LAYOUT.fountain.z, 14.5, 14), loop: true },
-    { pts: [{ x: -120, z: -24 }, { x: 120, z: -24 }], loop: false },
-    { pts: [{ x: -120, z: -106 }, { x: 120, z: -106 }], loop: false },
-    { pts: [{ x: -120, z: -124 }, { x: 120, z: -124 }], loop: false },
-    { pts: [{ x: -120, z: -4 }, { x: 120, z: -4 }], loop: false }
-  ];
-  for (let i = 0; i < 24; i++) {
-    const route = routes[i % routes.length];
-    const p = passerby();
-    p.idleRole = r() < 0.5 ? 'idle' : 'idle2';
-    if (route.loop) {
-      const start = Math.floor(r() * route.pts.length);
-      const s = route.pts[start];
-      const n = route.pts[(start + 1) % route.pts.length];
-      const t = r();
-      p.place(s.x + (n.x - s.x) * t, s.z + (n.z - s.z) * t, 0);
-      p.walk(route.pts, { loop: true, speed: 1.1 + r() * 0.45, start: (start + 1) % route.pts.length, dir: 1 });
-    } else {
-      // Straight sidewalk routes walk back and forth.
-      p.place(-120 + r() * 240, route.pts[0].z, 0);
-      p.walk(route.pts, { loop: true, speed: 1.1 + r() * 0.45, start: r() < 0.5 ? 0 : 1, dir: 1 });
-    }
-    civilians.push(p);
-  }
-  // Pairs standing and talking: one speaks, the other listens.
-  for (const [x, z] of [[-20, -40], [22, -88], [-25, -90], [20, -38]]) {
-    const a = passerby();
-    const b = passerby();
-    a.place(x - 0.6, z, Math.PI / 2);
-    b.place(x + 0.6, z, -Math.PI / 2);
-    a.standStill(Math.PI / 2, 'talk');
-    b.standStill(-Math.PI / 2, r() < 0.5 ? 'idle' : 'idle2');
-    civilians.push(a, b);
-  }
-  // A few people stopped on their phones near the benches.
-  for (const [x, z, face] of [[-12, -50, 0.6], [13, -46, -2.4], [-30, -70, 1.4]]) {
-    const p = passerby();
-    p.place(x, z, face);
-    p.standStill(face, 'phone');
-    civilians.push(p);
-  }
-
-  // The contact waits by the fountain on the phone, facing north toward Meridian Tower.
-  const contactBase = rocketbox ? rocketbox[CONTACT_AVATAR] : fallback;
-  const contact = make(contactBase, { suit: '#7b6a55', trousers: '#3b3f45', skin: '#c68e6e', hair: '#1a1410', tie: '#3c3c3c' }, 1.76);
-  contact.place(6.5, -79, Math.PI);
-  contact.standStill(Math.PI, 'phone');
-  civilians.push(contact);
-
-  // The target. With Rocketbox: checked brown-grey suit, dark red shirt (Male_Adult_03).
-  const targetBase = rocketbox ? rocketbox[TARGET_AVATAR] : fallback;
-  const targetLook = { suit: '#6e7378', trousers: '#2d3138', skin: '#e0b49a', hair: '#3b2a1e', tie: '#b3261e', avatar: TARGET_AVATAR };
-  const target = make(targetBase, targetLook, 1.82);
-  const door = LAYOUT.meridianDoor;
-  target.place(door.x, door.z, 0);
-  const car = LAYOUT.targetCar;
-  const meeting = { x: 5.2, z: -81 };
-  target.walk([
-    { x: door.x, z: door.z + 1 },
-    { x: 9, z: -115 },
-    { x: 8, z: -104.5 },
-    { x: 6.5, z: -90 },
-    { x: meeting.x, z: meeting.z, wait: 26, anim: 'talk' },
-    { x: 11, z: -93 },
-    { x: 18, z: -103 },
-    { x: car.x - 2.4, z: -106.8 },
-    { x: car.x - 2.4, z: car.z + 1.2 }
-  ], { loop: false, speed: 1.25 });
-
-  const exits = [
-    { x: -60, z: -20 }, { x: 60, z: -20 }, { x: -60, z: -110 }, { x: 60, z: -110 },
-    { x: -130, z: -24 }, { x: 130, z: -24 }, { x: -130, z: -106 }, { x: 130, z: -106 },
-    { x: -130, z: -4 }, { x: 130, z: -4 }, { x: door.x, z: door.z }
-  ];
+  const built = setup({ r, pick, rocketbox, avatar, passerby, make, randomLook, MEN, WOMEN, rect, ring });
+  const { civilians, target, targetLook, exits } = built;
+  const targetBase = avatar(targetLook.avatar || TARGET_AVATAR);
 
   let panicked = false;
   const all = [...civilians, target];
   return {
     civilians,
     target,
-    contact,
+    contact: built.contact || null,
     targetLook,
     get panicked() {
       return panicked;
     },
-    /** Everyone runs for cover; the target runs for his car. */
+    /** Everyone runs for cover; the target runs for his escape route. */
     panic() {
       if (panicked) return;
       panicked = true;
       for (const p of civilians) p.flee(exits);
-      if (target.alive) {
-        target.path = [{ x: 18, z: -103 }, { x: car.x - 2.4, z: car.z + 1.2 }];
-        target.index = 0;
-        target.loop = false;
-        target.wait = 0;
-        target.speed = 4.4;
-        target.mode = 'walk';
-        target.panicDelay = 0.35;
-      }
+      if (target.alive && built.panicTarget) built.panicTarget(target);
+    },
+    /** True once the target has got away (the scene decides what that means). */
+    escaped() {
+      return target.alive && built.escaped();
     },
     /** @param {number} dt */
     update(dt) {
-      // The contact hangs up and talks while the target stands with him.
-      if (contact.alive && contact.mode === 'idle') {
-        const meetingNow = target.alive && target.wait > 0 && Math.hypot(target.x - meeting.x, target.z - meeting.z) < 0.5;
-        contact.setIdle(meetingNow ? 'talk' : target.index > 4 ? 'idle' : 'phone');
-      }
+      if (built.update) built.update(dt);
       for (const p of all) p.update(dt);
     },
     /**
@@ -627,6 +581,8 @@ export async function createCrowd(scene) {
     baseHeight: targetBase.baseHeight
   };
 }
+
+export { TARGET_AVATAR, CONTACT_AVATAR };
 
 function rect(x0, z0, x1, z1) {
   return [{ x: x0, z: z0 }, { x: x1, z: z0 }, { x: x1, z: z1 }, { x: x0, z: z1 }];

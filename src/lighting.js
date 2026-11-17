@@ -19,11 +19,18 @@ const SUN_AZIMUTH = -1.25;
 const MIN_LIGHT_ELEVATION = 0.36;
 const PLAZA = new THREE.Vector3(0, 0, -70);
 
+/** Looks for each time of day, all lit by the same sky panorama. */
+const PRESETS = {
+  golden: { exposure: 1.12, fog: '#c9b39e', fogDensity: 0.00085, env: 1.05, sky: 1, hemiSky: '#f3d6b8', hemiGround: '#5a4c42', hemi: 0.55, sun: '#ffc590', sunIntensity: 2.6, flare: true },
+  sunset: { exposure: 0.92, fog: '#d39a74', fogDensity: 0.00105, env: 0.85, sky: 0.9, hemiSky: '#ffc49a', hemiGround: '#4a3a33', hemi: 0.5, sun: '#ff9550', sunIntensity: 2.2, flare: true },
+  dusk: { exposure: 0.62, fog: '#3d4763', fogDensity: 0.0012, env: 0.45, sky: 0.45, hemiSky: '#8494c0', hemiGround: '#2a2a33', hemi: 0.45, sun: '#ffae78', sunIntensity: 0.55, flare: false }
+};
+
 /**
  * @param {THREE.Scene} scene
  * @param {THREE.WebGLRenderer} renderer
  * @param {import('./assets.js').Manifest | null} manifest
- * @returns {Promise<{ sun: THREE.DirectionalLight }>}
+ * @returns {Promise<{ sun: THREE.DirectionalLight, setPreset: (name: string, focus?: { x: number, z: number }) => void }>}
  */
 export async function setupLighting(scene, renderer, manifest) {
   renderer.toneMappingExposure = 1.12;
@@ -52,7 +59,8 @@ export async function setupLighting(scene, renderer, manifest) {
   pmrem.dispose();
   scene.environmentIntensity = 1.05;
 
-  scene.add(new THREE.HemisphereLight('#f3d6b8', '#5a4c42', 0.55));
+  const hemi = new THREE.HemisphereLight('#f3d6b8', '#5a4c42', 0.55);
+  scene.add(hemi);
 
   // Shadow light: same azimuth as the sky's sun, raised to a playable minimum elevation.
   const lightDir = sunDir.clone();
@@ -81,7 +89,33 @@ export async function setupLighting(scene, renderer, manifest) {
   flareAnchor.add(makeFlare());
   scene.add(flareAnchor);
 
-  return { sun };
+  /**
+   * Time-of-day presets: the same sky panorama, tinted and dimmed. `focus` moves the shadow
+   * camera to where the contract happens (the shadow map only covers 300 x 300 m).
+   * @param {string} name 'golden' | 'sunset' | 'dusk'
+   * @param {{ x: number, z: number }} [focus]
+   */
+  function setPreset(name, focus) {
+    const p = PRESETS[name] || PRESETS.golden;
+    renderer.toneMappingExposure = p.exposure;
+    /** @type {THREE.FogExp2} */ (scene.fog).color.set(p.fog);
+    /** @type {THREE.FogExp2} */ (scene.fog).density = p.fogDensity;
+    scene.environmentIntensity = p.env;
+    scene.backgroundIntensity = p.sky;
+    hemi.color.set(p.hemiSky);
+    hemi.groundColor.set(p.hemiGround);
+    hemi.intensity = p.hemi;
+    sun.color.set(p.sun);
+    sun.intensity = p.sunIntensity;
+    flareAnchor.visible = p.flare;
+    const f = focus || { x: PLAZA.x, z: PLAZA.z };
+    sun.target.position.set(f.x, 0, f.z);
+    sun.position.copy(sun.target.position).addScaledVector(lightDir, 320);
+    sun.target.updateMatrixWorld();
+  }
+  setPreset('golden');
+
+  return { sun, setPreset };
 }
 
 /**

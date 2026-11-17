@@ -10,16 +10,14 @@ import { loadFittedRifle } from './rifle-model.js';
 import { FBXLoader } from 'three/addons/loaders/FBXLoader.js';
 import { buildCity, LAYOUT } from './city.js';
 import { createCrowd } from './people.js';
-import { HARBOR } from './missions.js';
+import { MISSIONS, missionById } from './missions.js';
+import { SCENES } from './scenes/index.js';
 
 const BASE_FOV = 55;
 const SCOPE_REF_FOV = 28;
 const ZOOM_MIN = 2;
 /** Default top magnification; the Scope upgrade raises it (see armory.js). */
 const ZOOM_MAX = 12;
-const YAW_LIMIT = 1.25;
-const PITCH_MIN = -0.95;
-const PITCH_MAX = 0.35;
 const SWAY = 0.0016;
 const SUBSTEP = 1 / 1000;
 /** @type {Record<string, number>} */
@@ -45,7 +43,7 @@ export async function createGame(opts) {
   const { canvas, scopeCanvas, hud, audio, input, onEnd } = opts;
   const progress = opts.onProgress || (() => {});
   let settings = opts.settings;
-  const mission = HARBOR;
+  let mission = MISSIONS[0];
 
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
   renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -58,16 +56,36 @@ export async function createGame(opts) {
   const scene = new THREE.Scene();
   progress('Loading the sky');
   const manifest = await loadManifest();
-  const { sun } = await setupLighting(scene, renderer, manifest);
+  const lighting = await setupLighting(scene, renderer, manifest);
+  const sun = lighting.sun;
+  lighting.setPreset(mission.lighting, mission.vantage.focus);
 
   progress('Building Harbor Plaza');
   const city = await buildCity(scene, manifest);
   progress('Filling the plaza');
-  let crowd = await createCrowd(scene);
+  let crowd = await createCrowd(scene, SCENES[mission.scene].people, mission.vantage.eye, mission.seed);
+  /** @type {any} The current contract's set dressing (props, lights), removed when the contract changes. */
+  let dressing = { group: null, colliders: [], rangeMeshes: [] };
+  await dressFor(mission);
+
+  async function dressFor(m) {
+    if (dressing.group) scene.remove(dressing.group);
+    dressing = { group: null, colliders: [], rangeMeshes: [] };
+    const def = SCENES[m.scene];
+    if (def && def.dress) {
+      try {
+        const d = await def.dress(scene, city);
+        dressing = d;
+        if (d.group && !d.group.parent) scene.add(d.group);
+      } catch (err) {
+        console.warn('Set dressing for ' + m.id + ' failed.', err);
+      }
+    }
+  }
 
   const camera = new THREE.PerspectiveCamera(BASE_FOV, 1, 0.1, 6000);
   camera.rotation.order = 'YXZ';
-  const eye = LAYOUT.eye;
+  let eye = mission.vantage.eye;
   camera.position.set(eye.x, eye.y, eye.z);
   scene.add(camera);
   const rifleView = await makeRifleView();
@@ -113,8 +131,8 @@ export async function createGame(opts) {
       mode: 'menu',
       time: 0,
       clock: 0,
-      yaw: 0,
-      pitch: -0.42,
+      yaw: mission.vantage.yaw,
+      pitch: mission.vantage.pitch,
       scoped: false,
       zoom: 6,
       fov: BASE_FOV,
@@ -272,8 +290,8 @@ export async function createGame(opts) {
     s.wind = mission.wind.base + Math.sin(s.time * 0.11) * mission.wind.gust * 0.6 + Math.sin(s.time * 0.31 + 1) * mission.wind.gust * 0.4;
 
     if (s.mode === 'menu') {
-      s.yaw = Math.sin(s.time * 0.05) * 0.35;
-      s.pitch = -0.32 + Math.sin(s.time * 0.07) * 0.03;
+      s.yaw = mission.vantage.yaw + Math.sin(s.time * 0.05) * 0.35;
+      s.pitch = mission.vantage.pitch * 0.75 + Math.sin(s.time * 0.07) * 0.03;
       s.scoped = false;
       s.fov = BASE_FOV;
       aimCamera(0, 0);
@@ -307,8 +325,9 @@ export async function createGame(opts) {
       s.yaw += gyro.yaw;
       s.pitch += gyro.pitch;
     }
-    s.yaw = Math.max(-YAW_LIMIT, Math.min(YAW_LIMIT, s.yaw));
-    s.pitch = Math.max(PITCH_MIN, Math.min(PITCH_MAX, s.pitch));
+    const v = mission.vantage;
+    s.yaw = Math.max(v.yaw - v.yawRange, Math.min(v.yaw + v.yawRange, s.yaw));
+    s.pitch = Math.max(v.pitchMin, Math.min(v.pitchMax, s.pitch));
 
     const targetFov = s.scoped ? scopeFov(s.zoom) : BASE_FOV;
     s.fov += (targetFov - s.fov) * Math.min(1, dt * 16);
@@ -356,7 +375,7 @@ export async function createGame(opts) {
     if (rangeTimer <= 0) {
       rangeTimer = 0.1;
       raycaster.setFromCamera(center, camera);
-      const hits = raycaster.intersectObjects(city.rangeMeshes, false);
+      const hits = raycaster.intersectObjects(dressing.rangeMeshes.length ? [...dressing.rangeMeshes, ...city.rangeMeshes] : city.rangeMeshes, false);
       hud.range(hits.length ? hits[0].distance : null);
     }
 
@@ -386,22 +405,20 @@ export async function createGame(opts) {
       s.panicTimer -= dt;
       if (s.panicTimer <= 0) {
         crowd.panic();
-        if (crowd.target.alive) hud.intel('He heard the shot. He is running for the car!');
+        if (crowd.target.alive) hud.intel(mission.panicIntel);
       }
     }
-    // The target reaching his car ends the contract.
+    // The target reaching his way out (car, ship, door: the scene decides) ends the contract.
     const t = crowd.target;
-    if (t.alive && s.result === null && t.mode === 'idle' && t.index === t.path.length - 1 && t.path.length > 0) {
-      const car = LAYOUT.targetCar;
-      if (Math.hypot(t.x - (car.x - 2.4), t.z - (car.z + 1.2)) < 0.5) {
-        t.mode = 'gone';
-        t.root.visible = false;
-        s.result = 'escaped';
-        s.endTimer = 3;
-        hud.flash('The target got away', 'bad');
-      }
+    if (s.result === null && crowd.escaped()) {
+      t.mode = 'gone';
+      t.root.visible = false;
+      s.result = 'escaped';
+      s.endTimer = 3;
+      hud.flash('The target got away', 'bad');
     }
-    if (s.result === 'escaped') city.targetCar.position.x += dt * Math.min(14, (3 - s.endTimer) * 6);
+    const def = SCENES[mission.scene];
+    if (s.result === 'escaped' && def.onEscape) def.onEscape({ city }, dt, 3 - s.endTimer);
   }
 
   /** Rough seconds until the target reaches his car, for the HUD clock. */
@@ -505,6 +522,10 @@ export async function createGame(opts) {
     };
     const floor = 0.12;
     if (b.y <= floor && a.y > floor) consider({ t: (a.y - floor) / (a.y - b.y), kind: 'ground' });
+    for (const box of dressing.colliders) {
+      const t = segmentBox(a, b, box);
+      if (t !== null) consider({ t, kind: 'wall' });
+    }
     for (const box of city.colliders) {
       const t = segmentBox(a, b, box);
       if (t !== null) consider({ t, kind: 'wall' });
@@ -692,12 +713,17 @@ export async function createGame(opts) {
    * Puts the contract back to its start without reloading the page: the city stays, only the
    * people are rebuilt (their models and animations are cached, so this takes a moment).
    */
-  async function resetContract() {
+  async function resetContract(nextId) {
     s.mode = 'menu';
     s.bullets = [];
+    const changed = nextId && nextId !== mission.id;
+    if (nextId) mission = missionById(nextId);
     for (const p of [...crowd.civilians, crowd.target]) scene.remove(p.root);
-    crowd = await createCrowd(scene);
-    city.targetCar.position.set(LAYOUT.targetCar.x, city.targetCar.position.y, LAYOUT.targetCar.z);
+    crowd = await createCrowd(scene, SCENES[mission.scene].people, mission.vantage.eye, mission.seed);
+    eye = mission.vantage.eye;
+    if (changed || !dressing.group) await dressFor(mission);
+    lighting.setPreset(mission.lighting, mission.vantage.focus);
+    for (const def of Object.values(SCENES)) if (def.reset) def.reset({ city });
     s = freshState();
     bulletMesh.visible = false;
     hud.reset();
@@ -709,14 +735,22 @@ export async function createGame(opts) {
   }
 
   return {
-    mission,
+    get mission() {
+      return mission;
+    },
     get crowd() {
       return crowd;
     },
-    portraitSource: { gltf: crowd.gltf, baseHeight: crowd.baseHeight, look: crowd.targetLook },
+    get portraitSource() {
+      return { gltf: crowd.gltf, baseHeight: crowd.baseHeight, look: crowd.targetLook };
+    },
+    /** Switches to another contract (people, set dressing, light, vantage) and stays in the menu. */
+    async setMission(id) {
+      await resetContract(id);
+    },
     /** Restarts the contract in place and starts playing. */
-    async restart() {
-      await resetContract();
+    async restart(id) {
+      await resetContract(id);
       this.begin();
     },
     /** Back to the menu with a fresh contract, without reloading. */

@@ -5,10 +5,10 @@ import { createAudio } from './audio.js';
 import { createInput } from './input.js';
 import { createGame } from './game.js';
 import { renderPortrait } from './people.js';
-import { HARBOR } from './missions.js';
+import { MISSIONS, missionById } from './missions.js';
 import { loadSettings, saveSettings, loadBest, saveBest } from './settings.js';
 import { loadProgress, saveProgress, levelOf, rewardFor } from './progress.js';
-import { RIFLES, UPGRADES, CONTRACTS, upgradeLevel, nextPrice, buyUpgrade, loadoutFor } from './armory.js';
+import { RIFLES, UPGRADES, upgradeLevel, nextPrice, buyUpgrade, loadoutFor } from './armory.js';
 import { createArmoryView } from './armory-view.js';
 
 const $ = (id) => /** @type {HTMLElement} */ (document.getElementById(id));
@@ -52,23 +52,40 @@ const armoryView = createArmoryView(/** @type {HTMLCanvasElement} */ ($('armory-
 
 // ---------- Contracts ----------
 
+/** A contract is open when the one before it has been completed at least once. */
+function isUnlocked(index) {
+  return index === 0 || (loadBest(MISSIONS[index - 1].id) || 0) > 0;
+}
+
+/** The contract the Play button starts: the first open one not yet completed, else the last open. */
+function nextMissionId() {
+  let last = MISSIONS[0].id;
+  for (let i = 0; i < MISSIONS.length; i++) {
+    if (!isUnlocked(i)) break;
+    last = MISSIONS[i].id;
+    if (!loadBest(MISSIONS[i].id)) return MISSIONS[i].id;
+  }
+  return last;
+}
+
 function renderContracts() {
   const grid = $('contract-grid');
   grid.textContent = '';
-  for (const c of CONTRACTS) {
+  MISSIONS.forEach((m, index) => {
+    const open = isUnlocked(index);
     const card = document.createElement('div');
-    card.className = 'contract-card' + (c.playable ? '' : ' locked');
+    card.className = 'contract-card' + (open ? '' : ' locked');
     const num = document.createElement('div');
     num.className = 'num';
-    num.textContent = 'Contract ' + String(c.number).padStart(2, '0');
+    num.textContent = 'Contract ' + String(m.number).padStart(2, '0');
     const h = document.createElement('h3');
-    h.textContent = c.title;
+    h.textContent = m.title;
     const where = document.createElement('div');
     where.className = 'where';
-    where.textContent = c.district;
+    where.textContent = m.district;
     card.append(num, h, where);
-    if (c.playable) {
-      const best = loadBest(c.id) || 0;
+    if (open) {
+      const best = loadBest(m.id) || 0;
       const stars = document.createElement('div');
       stars.className = 'stars';
       stars.textContent = '\u2605'.repeat(best) + '\u2606'.repeat(3 - best);
@@ -76,16 +93,16 @@ function renderContracts() {
       play.className = 'btn btn-primary';
       play.type = 'button';
       play.textContent = best ? 'Play again' : 'Play';
-      play.addEventListener('click', () => startMission());
+      play.addEventListener('click', () => startMission(m.id));
       card.append(stars, play);
     } else {
       const lock = document.createElement('div');
       lock.className = 'lock';
-      lock.textContent = 'Locked: ' + c.needs;
+      lock.textContent = 'Locked: complete ' + MISSIONS[index - 1].title;
       card.append(lock);
     }
     grid.appendChild(card);
-  }
+  });
 }
 $('btn-nav-contracts').addEventListener('click', () => {
   renderContracts();
@@ -177,18 +194,31 @@ $('btn-armory-back').addEventListener('click', () => show('menu'));
 
 // ---------- contract card ----------
 
-$('contract-number').textContent = 'Contract ' + String(HARBOR.number).padStart(2, '0');
-$('contract-title').textContent = HARBOR.title;
-$('contract-district').textContent = HARBOR.district;
-$('contract-briefing').textContent = HARBOR.briefing;
-$('target-name').textContent = HARBOR.target.name;
-$('target-description').textContent = HARBOR.target.description;
-const starList = $('contract-stars');
-for (const text of HARBOR.stars) {
-  const li = document.createElement('li');
-  li.textContent = text;
-  starList.appendChild(li);
+/** Fills the home screen's dossier card for a contract. */
+function renderDossier(m) {
+  $('contract-number').textContent = 'Contract ' + String(m.number).padStart(2, '0');
+  $('contract-title').textContent = m.title;
+  $('contract-district').textContent = m.district;
+  $('contract-briefing').textContent = m.briefing;
+  $('target-name').textContent = m.target.name;
+  $('target-description').textContent = m.target.description;
+  const starList = $('contract-stars');
+  starList.textContent = '';
+  for (const text of m.stars) {
+    const li = document.createElement('li');
+    li.textContent = text;
+    starList.appendChild(li);
+  }
+  const open = MISSIONS.filter((_, i) => isUnlocked(i)).length;
+  $('nav-contracts-sub').textContent = open + ' of ' + MISSIONS.length + ' open';
+  showBest();
 }
+
+function renderTargetPhoto() {
+  const src = game.portraitSource;
+  renderPortrait(/** @type {HTMLCanvasElement} */ ($('target-photo')), src.gltf, src.baseHeight, src.look);
+}
+renderDossier(MISSIONS[0]);
 showBest();
 showWallet();
 
@@ -200,7 +230,7 @@ function showWallet() {
 }
 
 function showBest() {
-  const best = loadBest(HARBOR.id);
+  const best = loadBest(game ? game.mission.id : MISSIONS[0].id);
   $('contract-best').textContent = best === null ? 'Not completed yet' : 'Best: ' + '★'.repeat(best) + '☆'.repeat(3 - best);
 }
 
@@ -219,11 +249,17 @@ createGame({
   onProgress: (text) => {
     loadingText.textContent = text;
   }
-}).then((g) => {
+}).then(async (g) => {
   game = g;
   /** @type {any} */ (window).SKY = { game, settings: () => settings };
-  const src = game.portraitSource;
-  renderPortrait(/** @type {HTMLCanvasElement} */ ($('target-photo')), src.gltf, src.baseHeight, src.look);
+  // Open on the next contract to play.
+  const next = nextMissionId();
+  if (next !== game.mission.id) {
+    loadingText.textContent = 'Preparing ' + missionById(next).title;
+    await game.setMission(next);
+  }
+  renderDossier(game.mission);
+  renderTargetPhoto();
   let autostart = false;
   try {
     autostart = sessionStorage.getItem('skyline.autostart') === '1';
@@ -240,13 +276,21 @@ createGame({
   loadingText.textContent = 'The city did not load. Check your connection and reload.';
 });
 
-$('btn-start').addEventListener('click', () => startMission());
+$('btn-start').addEventListener('click', () => startMission(game.mission.id));
 $('btn-menu-settings').addEventListener('click', () => openSettings('menu'));
 
-function startMission() {
+/** Starts a contract, switching the city's people, light and vantage first if needed. */
+async function startMission(id) {
   audio.unlock();
   enterFullscreen();
   if (settings.gyro !== 'off') input.requestGyroPermission();
+  if (id && id !== game.mission.id) {
+    loadingText.textContent = 'Preparing ' + missionById(id).title;
+    show('loading');
+    await game.setMission(id);
+    renderDossier(game.mission);
+    renderTargetPhoto();
+  }
   show(null);
   game.setLoadout(loadoutFor(progress));
   game.begin();
@@ -261,7 +305,7 @@ setInterval(() => {
     return;
   }
   if (!st.scoped) hud.hint('Tap SCOPE to look through the scope', 'btn-scope');
-  else if (!st.onTarget) hud.hint('Drag to put the cross on Victor Hale', null);
+  else if (!st.onTarget) hud.hint('Drag to put the cross on ' + game.mission.target.name, null);
   else hud.hint('Hold your breath, then press FIRE', 'btn-fire');
 }, 200);
 
@@ -319,7 +363,11 @@ async function restartContract() {
 async function backToMenu() {
   loadingText.textContent = 'Resetting the plaza';
   show('loading');
-  await game.toMenu();
+  const next = nextMissionId();
+  if (next !== game.mission.id) await game.setMission(next);
+  else await game.toMenu();
+  renderDossier(game.mission);
+  renderTargetPhoto();
   showBest();
   showWallet();
   show('menu');
@@ -403,10 +451,11 @@ function showResults(r) {
     escaped: 'Target escaped',
     civilian: 'Contract terminated'
   };
+  const m = game.mission;
   const lines = {
-    win: r.head ? 'One shot to the head. Hale never reached his car.' : 'Hale is down. The harbour has one less banker.',
-    escaped: 'Hale reached his car and is gone. He will be twice as careful next time.',
-    civilian: 'A civilian is dead. The client cancels the contract and the police seal the district.'
+    win: r.head ? m.results.winHead : m.results.win,
+    escaped: m.results.escaped,
+    civilian: m.results.civilian
   };
   $('results-title').textContent = titles[r.result] || 'Contract over';
   $('results-line').textContent = lines[r.result] || '';
@@ -417,8 +466,8 @@ function showResults(r) {
   $('res-distance').textContent = r.distance ? Math.round(r.distance) + ' m' : '---';
   $('res-head').textContent = r.head ? 'Yes' : 'No';
   if (win) {
-    const best = loadBest(HARBOR.id);
-    if (best === null || r.stars > best) saveBest(HARBOR.id, r.stars);
+    const best = loadBest(m.id);
+    if (best === null || r.stars > best) saveBest(m.id, r.stars);
   }
   const pay = rewardFor(r);
   const levelBefore = levelOf(progress.xp).level;
@@ -445,8 +494,18 @@ function showResults(r) {
   for (const l of pay.lines) row(l.label, '$' + l.cash, '');
   const levelAfter = levelOf(progress.xp).level;
   row(win ? 'Paid' : 'No payment', '$' + pay.cash + '  \u00b7  +' + pay.xp + ' XP' + (levelAfter > levelBefore ? '  \u00b7  Level ' + levelAfter + '!' : ''), 'total');
+  // Offer the next contract when this win unlocked (or already had) it.
+  const index = MISSIONS.findIndex((x) => x.id === m.id);
+  const nextBtn = $('btn-next');
+  const hasNext = win && index + 1 < MISSIONS.length && isUnlocked(index + 1);
+  nextBtn.hidden = !hasNext;
+  if (hasNext) nextBtn.textContent = 'Next: ' + MISSIONS[index + 1].title;
   setTimeout(() => show('results'), win ? 300 : 0);
 }
+$('btn-next').addEventListener('click', () => {
+  const index = MISSIONS.findIndex((x) => x.id === game.mission.id);
+  if (index + 1 < MISSIONS.length) startMission(MISSIONS[index + 1].id);
+});
 $('btn-retry').addEventListener('click', () => restartContract());
 $('btn-results-menu').addEventListener('click', () => backToMenu());
 
