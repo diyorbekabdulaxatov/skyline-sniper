@@ -317,7 +317,7 @@ export async function createCrowd(scene) {
   contact.standStill(Math.PI);
   civilians.push(contact);
 
-  // The target: grey suit, red tie.
+  // The target: grey suit, red shirt.
   const targetLook = { suit: '#6e7378', trousers: '#2d3138', skin: '#e0b49a', hair: '#3b2a1e', tie: '#b3261e' };
   const target = make(targetLook, 1.82);
   const door = LAYOUT.meridianDoor;

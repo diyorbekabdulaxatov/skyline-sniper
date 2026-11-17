@@ -66,7 +66,7 @@ export function facadeMaterial(style) {
       for (let c = 0; c < cols; c++) {
         const x = c * cw + 3;
         const y = f * fh + 3;
-        pane(g, a, x, y, cw - 6, fh - 6, pick(s.glass, r), r, 0.15);
+        pane(g, a, x, y, cw - 6, fh - 6, pick(s.glass, r), r, 0.05);
       }
       // Spandrel line at each floor slab.
       g.fillStyle = s.frame;
@@ -80,7 +80,7 @@ export function facadeMaterial(style) {
     for (let f = 0; f < floors; f++) {
       const y = f * fh + fh * 0.36;
       const h = fh * 0.5;
-      pane(g, a, 0, y, W, h, pick(s.glass, r), r, 0.1);
+      pane(g, a, 0, y, W, h, pick(s.glass, r), r, 0.03);
       g.fillStyle = s.frame;
       for (let x = 0; x <= W; x += W / 8) g.fillRect(x - 2, y, 4, h);
       g.fillStyle = 'rgba(0,0,0,0.12)';
@@ -97,7 +97,7 @@ export function facadeMaterial(style) {
         const y = f * fh + fh * 0.22;
         g.fillStyle = s.frame;
         g.fillRect(x - 5, y - 5, w + 10, h + 12);
-        pane(g, a, x, y, w, h, pick(s.glass, r), r, 0.25);
+        pane(g, a, x, y, w, h, pick(s.glass, r), r, 0.1);
         g.fillStyle = s.frame;
         g.fillRect(x + w / 2 - 2, y, 4, h);
         g.fillStyle = 'rgba(0,0,0,0.18)';
@@ -134,7 +134,7 @@ function pane(g, a, x, y, w, h, base, r, blindChance) {
   if (r() < blindChance) {
     // Blinds half down: matte and light.
     const bh = h * (0.3 + r() * 0.5);
-    g.fillStyle = 'rgba(220, 214, 200, 0.85)';
+    g.fillStyle = 'rgba(176, 172, 162, 0.55)';
     g.fillRect(x, y, w, bh);
     a.fillStyle = rgb(255, 200, 0);
     a.fillRect(x, y, w, bh);

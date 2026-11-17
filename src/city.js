@@ -129,9 +129,10 @@ export async function buildCity(scene, manifest) {
 
   // Our roof: parapet in front of the player and on the sides.
   const ry = LAYOUT.roofY;
-  addBox(scene, mats.stone, [0, ry + 0.5, -1.8], [30, 1.0, 0.4], colliders, null, true);
-  addBox(scene, mats.stone, [-14.8, ry + 0.5, 12], [0.4, 1.0, 28], colliders, null, true);
-  addBox(scene, mats.stone, [14.8, ry + 0.5, 12], [0.4, 1.0, 28], colliders, null, true);
+  const parapet = new THREE.MeshStandardMaterial({ color: '#7e7a74', roughness: 0.95 });
+  addBox(scene, parapet, [0, ry + 0.42, -1.8], [30, 0.84, 0.4], colliders, null, true);
+  addBox(scene, parapet, [-14.8, ry + 0.42, 12], [0.4, 0.84, 28], colliders, null, true);
+  addBox(scene, parapet, [14.8, ry + 0.42, 12], [0.4, 0.84, 28], colliders, null, true);
 
   // ---------- distant skyline ----------
   skyline(scene, r);
@@ -143,9 +144,9 @@ export async function buildCity(scene, manifest) {
   basin.castShadow = basin.receiveShadow = true;
   scene.add(basin);
   colliders.push([f.x - f.r, 0, f.z - f.r, f.x + f.r, walk + 0.7, f.z + f.r]);
-  const water = new THREE.Mesh(new THREE.CircleGeometry(f.r - 0.35, 48), mats.water);
+  const water = new THREE.Mesh(new THREE.CircleGeometry(f.r - 0.45, 48), mats.water);
   water.rotation.x = -Math.PI / 2;
-  water.position.set(f.x, walk + 0.62, f.z);
+  water.position.set(f.x, walk + 0.71, f.z);
   scene.add(water);
   const column = new THREE.Mesh(new THREE.CylinderGeometry(0.6, 0.9, 2.6, 24), mats.stone);
   column.position.set(f.x, walk + 1.5, f.z);
@@ -291,9 +292,9 @@ function tree(scene, mats, x, z, r) {
   trunk.position.set(x, LAYOUT.walkY + 2.1, z);
   trunk.castShadow = true;
   scene.add(trunk);
-  const leaves = new THREE.MeshStandardMaterial({ color: new THREE.Color().setHSL(0.26 + r() * 0.04, 0.38, 0.24 + r() * 0.06), roughness: 1 });
-  for (let i = 0; i < 6; i++) {
-    const s = 1.1 + r() * 0.8;
+  const leaves = new THREE.MeshStandardMaterial({ color: new THREE.Color().setHSL(0.25 + r() * 0.05, 0.42, 0.13 + r() * 0.05), roughness: 1 });
+  for (let i = 0; i < 11; i++) {
+    const s = 0.8 + r() * 0.7;
     const blob = new THREE.Mesh(new THREE.IcosahedronGeometry(s, 1), leaves);
     blob.position.set(x + (r() - 0.5) * 2.2, LAYOUT.walkY + 4 + r() * 1.8, z + (r() - 0.5) * 2.2);
     blob.castShadow = true;
