@@ -129,3 +129,38 @@ export function placeProp(parent, prop, x, y, z, rotY, size) {
   parent.add(obj);
   return obj;
 }
+
+/**
+ * A converted Rocketbox animation (see scripts/fetch-animations.mjs): rotation tracks per
+ * Biped bone sampled at `fps`, an optional hip bob in metres and the measured walking speed.
+ * @typedef {{ name: string, duration: number, fps: number, frames: number, speed: number,
+ *   bob: number[] | null, tracks: Record<string, number[]> }} AnimData
+ */
+
+/**
+ * Loads every clip listed in game-assets/anims/manifest.json, or returns null if the
+ * animations were not built (the crowd then falls back to the CC0 placeholder person).
+ * @returns {Promise<Record<string, AnimData> | null>}
+ */
+export async function loadAnimationSet() {
+  try {
+    const r = await fetch(BASE + 'anims/manifest.json');
+    if (!r.ok) return null;
+    const manifest = await r.json();
+    const names = Object.keys(manifest.clips || {});
+    const list = await Promise.all(names.map(async (name) => {
+      const res = await fetch(BASE + 'anims/' + manifest.clips[name].file);
+      if (!res.ok) throw new Error('Animation ' + name + ' is missing');
+      return /** @type {AnimData} */ (await res.json());
+    }));
+    /** @type {Record<string, AnimData>} */
+    const out = {};
+    names.forEach((n, i) => {
+      out[n] = list[i];
+    });
+    return out;
+  } catch (err) {
+    console.warn('Animations did not load.', err);
+    return null;
+  }
+}

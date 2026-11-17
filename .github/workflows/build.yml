@@ -53,6 +53,16 @@ jobs:
       - name: Fetch and shrink assets
         run: npm run assets
 
+      - name: Restore downloaded animations
+        uses: actions/cache@v4
+        with:
+          path: .cache/rocketbox
+          key: rocketbox-${{ hashFiles('scripts/fetch-animations.mjs') }}
+          restore-keys: rocketbox-
+
+      - name: Fetch and convert Rocketbox animations
+        run: npm run anims
+
       - name: Build
         run: npm run build
 

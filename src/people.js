@@ -1,85 +1,196 @@
 // @ts-check
-// People on the plaza: walkers on routes, groups standing and talking, the contact at the
-// fountain and the target. Each person is a skinned glTF clone with its own clothes colours
-// and animation mixer. Hits use the BODY zones from ballistics.js, scaled to each height.
+// People on the plaza: walkers on routes, groups talking, people on their phones, the contact
+// at the fountain and the target. Everyone is a Microsoft Rocketbox avatar (MIT) animated with
+// Rocketbox clips converted in CI (scripts/fetch-animations.mjs). If those files are missing,
+// the crowd falls back to the CC0 Quaternius person so the game still runs.
+// Hits use the BODY zones from ballistics.js, scaled to each person's height.
 import * as THREE from 'three';
 import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
 import { personHit } from './ballistics.js';
-import { loadGLTF, measure } from './assets.js';
+import { loadGLTF, measure, loadAnimationSet } from './assets.js';
 import { LAYOUT } from './city.js';
 import { rng } from './facades.js';
 
-const PERSON_URL = './models/man-suit.glb';
+const FALLBACK_URL = './models/man-suit.glb';
+const PEOPLE_DIR = './models/people/';
+/** The target's avatar: checked brown-grey suit, dark red shirt. Nobody else wears it. */
+const TARGET_AVATAR = 'Male_Adult_03';
+const CONTACT_AVATAR = 'Male_Adult_05';
+const MEN = ['Male_Adult_04', 'Male_Adult_05', 'Male_Adult_07', 'Male_Adult_10', 'Male_Adult_11', 'Male_Adult_12', 'Male_Adult_17', 'Male_Adult_20'];
+const WOMEN = ['Female_Adult_02', 'Female_Adult_11'];
+const ROLES = ['walk', 'run', 'idle', 'idle2', 'phone', 'talk'];
+
+// Outfit colours for the fallback person only (Rocketbox avatars keep their own clothes).
 const SUITS = ['#2b3442', '#4a4f57', '#1f2124', '#5c4a3a', '#3d4b3f', '#6b6f75', '#2e3a55', '#7b6a55', '#8a8f96'];
 const TROUSERS = ['#1d1f22', '#2d3138', '#3b3f45', '#4b4236', '#23293a'];
 const SKINS = ['#e0b49a', '#c68e6e', '#a46e4f', '#7a4b33', '#f1c9b0', '#b98262'];
 const HAIR = ['#1a1410', '#3b2a1e', '#6b4c33', '#9a7b55', '#2b2b2b', '#8c8c8c'];
 
 /**
- * @typedef {{ suit: string, trousers: string, skin: string, hair: string, tie?: string }} Look
- * @typedef {{ x: number, z: number, wait?: number }} Waypoint
+ * @typedef {{ suit: string, trousers: string, skin: string, hair: string, tie?: string, avatar?: string }} Look
+ * @typedef {{ x: number, z: number, wait?: number, anim?: string }} Waypoint
+ * @typedef {{ clip: THREE.AnimationClip, speed: number }} RoleClip
+ * @typedef {{ kind: 'rocketbox' | 'fallback', id: string, female: boolean, gltf: any,
+ *   baseHeight: number, clips: Record<string, RoleClip> }} Base
  */
 
-/** Finds the clip for a role, whatever the model calls it. */
+/** Finds a clip in the fallback model for a role, whatever it is called. */
 function findClip(clips, role) {
-  const tests = {
-    walk: /walk/i,
-    idle: /idle/i,
-    run: /(^|[_|\s])run(ning)?$/i,
-    death: /death|dying/i
-  };
-  return clips.find((c) => tests[role].test(c.name)) || null;
+  /** @type {Record<string, RegExp>} */
+  const tests = { walk: /walk/i, idle: /idle/i, run: /(^|[_|\s])run(ning)?$/i, death: /death|dying/i };
+  return tests[role] ? clips.find((c) => tests[role].test(c.name)) || null : null;
+}
+
+/**
+ * Turns converted Rocketbox data into clips for one avatar. The tracks are local bone
+ * rotations in the Biped's own frames, which the avatars share; the hip bob is added to this
+ * avatar's own hip position so the feet stay on the ground.
+ * @param {any} gltf
+ * @param {Record<string, import('./assets.js').AnimData>} anims
+ * @param {string} prefix 'm_' or 'f_'
+ * @returns {Record<string, RoleClip>}
+ */
+function buildClips(gltf, anims, prefix) {
+  /** @type {Record<string, THREE.Object3D>} */
+  const bones = {};
+  gltf.scene.traverse((o) => {
+    if (o.name && o.name.startsWith('Bip01')) bones[o.name] = o;
+  });
+  const hips = bones.Bip01;
+  /** @type {Record<string, RoleClip>} */
+  const out = {};
+  for (const role of ROLES) {
+    const a = anims[prefix + role];
+    if (!a) continue;
+    const times = [];
+    for (let i = 0; i < a.frames; i++) times.push(Math.min(a.duration, i / a.fps));
+    const tracks = [];
+    for (const bone of Object.keys(a.tracks)) {
+      if (!bones[bone]) continue;
+      const values = a.tracks[bone];
+      tracks.push(values.length === 4
+        ? new THREE.QuaternionKeyframeTrack(bone + '.quaternion', [0], values)
+        : new THREE.QuaternionKeyframeTrack(bone + '.quaternion', times, values));
+    }
+    if (a.bob && hips) {
+      const p = hips.position;
+      const values = [];
+      for (let i = 0; i < a.frames; i++) values.push(p.x, p.y + a.bob[i], p.z);
+      tracks.push(new THREE.VectorKeyframeTrack(hips.name + '.position', times, values));
+    }
+    out[role] = { clip: new THREE.AnimationClip(prefix + role, a.duration, tracks), speed: a.speed };
+  }
+  return out;
+}
+
+/** Rocketbox materials ship slightly metallic; our scene is lit by sky and sun, so keep them matte. */
+function matte(gltf) {
+  gltf.scene.traverse((o) => {
+    const mesh = /** @type {any} */ (o);
+    if (!mesh.isMesh) return;
+    for (const m of Array.isArray(mesh.material) ? mesh.material : [mesh.material]) {
+      if (!m) continue;
+      if ('metalness' in m) m.metalness = 0;
+      if ('roughness' in m) m.roughness = Math.max(0.6, m.roughness);
+      if ('envMapIntensity' in m) m.envMapIntensity = 0.7;
+    }
+  });
+}
+
+/**
+ * Loads all Rocketbox avatars with their clips, or returns null if anything is missing.
+ * @returns {Promise<Record<string, Base> | null>}
+ */
+async function loadRocketbox() {
+  const anims = await loadAnimationSet();
+  if (!anims || !anims.m_walk || !anims.f_walk) return null;
+  const ids = [TARGET_AVATAR, ...MEN, ...WOMEN];
+  try {
+    const list = await Promise.all(ids.map((id) => loadGLTF(PEOPLE_DIR + id + '.glb')));
+    /** @type {Record<string, Base>} */
+    const bases = {};
+    ids.forEach((id, i) => {
+      const gltf = list[i];
+      matte(gltf);
+      const female = id.startsWith('Female');
+      bases[id] = {
+        kind: 'rocketbox',
+        id,
+        female,
+        gltf,
+        baseHeight: measure(gltf.scene).getSize(new THREE.Vector3()).y,
+        clips: buildClips(gltf, anims, female ? 'f_' : 'm_')
+      };
+    });
+    return bases;
+  } catch (err) {
+    console.warn('Rocketbox people did not load; using the placeholder person.', err);
+    return null;
+  }
+}
+
+/** @returns {Promise<Base>} */
+async function loadFallback() {
+  const gltf = await loadGLTF(FALLBACK_URL);
+  /** @type {Record<string, RoleClip>} */
+  const clips = {};
+  for (const role of ['walk', 'idle', 'run', 'death']) {
+    const clip = findClip(gltf.animations, role);
+    if (clip) clips[role] = { clip, speed: role === 'run' ? 3.8 : 1.3 };
+  }
+  return { kind: 'fallback', id: 'man-suit', female: false, gltf, baseHeight: measure(gltf.scene).getSize(new THREE.Vector3()).y, clips };
 }
 
 export class Person {
   /**
-   * @param {any} gltf
-   * @param {number} baseHeight height of the model as loaded
+   * @param {Base} base
    * @param {Look} look
    * @param {number} height metres
    */
-  constructor(gltf, baseHeight, look, height) {
+  constructor(base, look, height) {
+    this.base = base;
     this.h = height;
     this.look = look;
     this.root = new THREE.Group();
-    const model = SkeletonUtils.clone(gltf.scene);
-    model.scale.multiplyScalar(height / baseHeight);
+    const model = SkeletonUtils.clone(base.gltf.scene);
+    model.scale.multiplyScalar(height / base.baseHeight);
     const box = measure(model);
     model.position.x -= (box.min.x + box.max.x) / 2;
     model.position.y -= box.min.y;
     model.position.z -= (box.min.z + box.max.z) / 2;
+    const recolor = (m) => {
+      const c = m.clone();
+      const name = (m.name || '').toLowerCase();
+      if (name.includes('shirt')) c.color.set(look.suit);
+      else if (name.includes('pants')) c.color.set(look.trousers);
+      else if (name.includes('skin')) c.color.set(look.skin);
+      else if (name.includes('hair')) c.color.set(look.hair);
+      else if (name.includes('tie') && look.tie) c.color.set(look.tie);
+      c.metalness = 0;
+      c.roughness = 0.8;
+      return c;
+    };
     model.traverse((o) => {
       const mesh = /** @type {any} */ (o);
       if (!mesh.isMesh) return;
       mesh.castShadow = true;
       mesh.frustumCulled = false;
-      const recolor = (m) => {
-        const c = m.clone();
-        const name = (m.name || '').toLowerCase();
-        if (name.includes('shirt')) c.color.set(look.suit);
-        else if (name.includes('pants')) c.color.set(look.trousers);
-        else if (name.includes('skin')) c.color.set(look.skin);
-        else if (name.includes('hair')) c.color.set(look.hair);
-        else if (name.includes('tie') && look.tie) c.color.set(look.tie);
-        c.metalness = 0;
-        c.roughness = 0.8;
-        return c;
-      };
-      mesh.material = Array.isArray(mesh.material) ? mesh.material.map(recolor) : recolor(mesh.material);
+      if (base.kind === 'fallback') {
+        mesh.material = Array.isArray(mesh.material) ? mesh.material.map(recolor) : recolor(mesh.material);
+      }
     });
     this.model = model;
     this.root.add(model);
     this.mixer = new THREE.AnimationMixer(model);
     /** @type {Record<string, THREE.AnimationAction>} */
     this.actions = {};
-    for (const role of ['walk', 'idle', 'run', 'death']) {
-      const clip = findClip(gltf.animations, role);
-      if (clip) this.actions[role] = this.mixer.clipAction(clip);
-    }
+    for (const role of Object.keys(base.clips)) this.actions[role] = this.mixer.clipAction(base.clips[role].clip);
     if (this.actions.death) {
       this.actions.death.setLoop(THREE.LoopOnce, 1);
       this.actions.death.clampWhenFinished = true;
     }
+    /** Which clip "idle" means for this person: 'idle', 'idle2', 'phone' or 'talk'. */
+    this.idleRole = 'idle';
     /** @type {THREE.AnimationAction | null} */
     this.current = null;
     this.alive = true;
@@ -95,6 +206,8 @@ export class Person {
     this.panicDelay = 0;
     /** @type {(() => void) | null} */
     this.onArrive = null;
+    /** @type {any} Procedural fall state after a fatal hit. */
+    this.fall = null;
   }
 
   get x() {
@@ -110,10 +223,15 @@ export class Person {
     this.root.rotation.y = face || 0;
   }
 
+  /** Plays a role ('walk', 'run', 'idle', 'phone', 'talk', ...), cross-fading from the last one. */
   play(name, fade) {
-    const next = this.actions[name] || this.actions.idle;
+    const role = name === 'idle' ? this.idleRole : name;
+    const next = this.actions[role] || this.actions[name] || this.actions.idle || this.actions.walk;
     if (!next || next === this.current) return;
-    next.reset().fadeIn(fade).play();
+    next.reset();
+    // Start looping clips at a random point so neighbours do not move in step.
+    if (next.loop !== THREE.LoopOnce) next.time = Math.random() * next.getClip().duration;
+    next.fadeIn(fade).play();
     if (this.current) this.current.fadeOut(fade);
     this.current = next;
   }
@@ -133,10 +251,19 @@ export class Person {
     if (p && this.root.position.lengthSq() === 0) this.place(p.x, p.z, 0);
   }
 
-  standStill(face) {
+  /** Stands in place doing `role` (idle, idle2, phone or talk), turned to `face`. */
+  standStill(face, role) {
     this.mode = 'idle';
+    if (role) this.idleRole = role;
     if (face !== undefined) this.root.rotation.y = face;
-    this.play('idle', 0.3);
+    this.play('idle', 0.4);
+  }
+
+  /** Changes what a standing person does without moving them. */
+  setIdle(role) {
+    if (this.idleRole === role) return;
+    this.idleRole = role;
+    if (this.mode === 'idle' || this.wait > 0) this.play('idle', 0.5);
   }
 
   /** Runs for the nearest exit after a short, individual reaction delay. */
@@ -154,7 +281,8 @@ export class Person {
     this.path = [best];
     this.index = 0;
     this.loop = false;
-    this.speed = 3.6 + Math.random() * 0.8;
+    this.wait = 0;
+    this.speed = 3.4 + Math.random() * 0.8;
     this.panicDelay = Math.random() * 0.7;
     this.mode = 'flee';
     this.onArrive = () => {
@@ -167,12 +295,67 @@ export class Person {
     if (!this.alive) return;
     this.alive = false;
     this.mode = 'dead';
-    this.play('death', 0.08);
+    if (this.actions.death) {
+      this.play('death', 0.08);
+      return;
+    }
+    // Rocketbox has no death clip: freeze the current pose and fall procedurally,
+    // away from the shooter, with the knees giving way first.
+    for (const a of Object.values(this.actions)) a.paused = true;
+    const dx = this.x - LAYOUT.eye.x;
+    const dz = this.z - LAYOUT.eye.z;
+    const d = Math.hypot(dx, dz) || 1;
+    /** @type {Record<string, THREE.Object3D>} */
+    const bones = {};
+    this.model.traverse((o) => {
+      if (o.name && o.name.startsWith('Bip01')) bones[o.name] = o;
+    });
+    const side = (Math.random() - 0.5) * 0.7;
+    this.fall = {
+      t: 0,
+      axis: new THREE.Vector3(dz / d + side * (-dx / d), 0, -dx / d + side * (-dz / d)).normalize(),
+      yaw: this.root.quaternion.clone(),
+      bones,
+      spin: (Math.random() - 0.5) * 0.5
+    };
+  }
+
+  /** Procedural fall: gravity-like tip over the feet, knees buckling, a small bounce. */
+  updateFall(dt) {
+    const f = this.fall;
+    f.t += dt;
+    const T = 0.9;
+    const k = Math.min(1, f.t / T);
+    const after = Math.max(0, f.t - T);
+    const bounce = after > 0 ? Math.sin(after * 11) * Math.exp(-after * 5) * 0.06 : 0;
+    const angle = Math.pow(k, 2.3) * (Math.PI / 2 - 0.06) - Math.abs(bounce);
+    const tip = new THREE.Quaternion().setFromAxisAngle(f.axis, angle);
+    const twist = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), f.spin * k);
+    this.root.quaternion.copy(tip).multiply(twist).multiply(f.yaw);
+    // Lift as the body tips so it ends lying on the ground, not half inside it.
+    this.root.position.y = LAYOUT.walkY + Math.sin(angle) * 0.12 * this.h;
+    // Bend joints on top of the frozen pose (the mixer rewrites bones every frame).
+    const buckle = Math.min(1, f.t / 0.35);
+    const bend = (name, axis, amount) => {
+      const b = f.bones[name];
+      if (!b) return;
+      const sign = Math.sign(b.quaternion.z) || -1;
+      b.quaternion.multiply(new THREE.Quaternion().setFromAxisAngle(axis, sign * amount));
+    };
+    const Z = new THREE.Vector3(0, 0, 1);
+    bend('Bip01_L_Calf', Z, 0.9 * buckle);
+    bend('Bip01_R_Calf', Z, 0.75 * buckle);
+    bend('Bip01_Spine1', Z, 0.25 * buckle);
+    bend('Bip01_Head', Z, 0.35 * k);
   }
 
   /** @param {number} dt */
   update(dt) {
     this.mixer.update(dt);
+    if (this.fall) {
+      this.updateFall(dt);
+      return;
+    }
     if (this.mode === 'dead' || this.mode === 'gone' || this.mode === 'idle') return;
     if (this.panicDelay > 0) {
       this.panicDelay -= dt;
@@ -190,13 +373,18 @@ export class Person {
     const d = Math.hypot(dx, dz);
     const stepLen = this.speed * dt;
     const running = this.speed > 2.5;
-    this.play(running ? 'run' : 'walk', 0.3);
-    const a = this.actions[running ? 'run' : 'walk'];
-    if (a) a.timeScale = running ? this.speed / 3.8 : this.speed / 1.3;
+    const role = running ? 'run' : 'walk';
+    this.play(role, 0.3);
+    const a = this.actions[role];
+    const clip = this.base.clips[role];
+    if (a && clip && clip.speed > 0) a.timeScale = this.speed / clip.speed;
     if (d <= stepLen) {
       this.root.position.x = goal.x;
       this.root.position.z = goal.z;
-      if (goal.wait) this.wait = goal.wait;
+      if (goal.wait) {
+        this.wait = goal.wait;
+        if (goal.anim) this.idleRole = goal.anim;
+      }
       const last = this.dir > 0 ? this.index === this.path.length - 1 : this.index === 0;
       if (last) {
         if (!this.loop) {
@@ -261,16 +449,26 @@ export class Person {
  * @param {THREE.Scene} scene
  */
 export async function createCrowd(scene) {
-  const gltf = await loadGLTF(PERSON_URL);
-  const baseHeight = measure(gltf.scene).getSize(new THREE.Vector3()).y;
+  const rocketbox = await loadRocketbox();
+  const fallback = rocketbox ? null : await loadFallback();
   const r = rng(77);
   const pick = (list) => list[Math.floor(r() * list.length)];
   /** @returns {Look} */
   const randomLook = () => ({ suit: pick(SUITS), trousers: pick(TROUSERS), skin: pick(SKINS), hair: pick(HAIR), tie: pick(['#2a3b5c', '#5b2a2a', '#3c3c3c', '#7d6a3a']) });
-  const make = (look, height) => {
-    const p = new Person(gltf, baseHeight, look, height);
+  /** A random passer-by: about one in four is a woman. */
+  const randomBase = () => {
+    if (!rocketbox) return { base: fallback, female: false };
+    const female = r() < 0.27;
+    return { base: rocketbox[pick(female ? WOMEN : MEN)], female };
+  };
+  const make = (base, look, height) => {
+    const p = new Person(base, look, height);
     scene.add(p.root);
     return p;
+  };
+  const passerby = () => {
+    const { base, female } = randomBase();
+    return make(base, randomLook(), female ? 1.6 + r() * 0.12 : 1.7 + r() * 0.17);
   };
 
   /** @type {Person[]} */
@@ -286,49 +484,61 @@ export async function createCrowd(scene) {
   ];
   for (let i = 0; i < 24; i++) {
     const route = routes[i % routes.length];
-    const p = make(randomLook(), 1.68 + r() * 0.2);
-    const start = Math.floor(r() * route.pts.length);
-    const s = route.pts[start];
-    const n = route.pts[(start + 1) % route.pts.length];
-    const t = r();
-    p.place(s.x + (n.x - s.x) * t, s.z + (n.z - s.z) * t, 0);
-    p.walk(route.pts, { loop: true, speed: 1.1 + r() * 0.5, start: (start + 1) % route.pts.length, dir: 1 });
-    // Straight sidewalk routes walk back and forth.
-    if (!route.loop) {
-      p.walk(route.pts, { loop: true, speed: 1.1 + r() * 0.5, start: r() < 0.5 ? 0 : 1, dir: 1 });
+    const p = passerby();
+    p.idleRole = r() < 0.5 ? 'idle' : 'idle2';
+    if (route.loop) {
+      const start = Math.floor(r() * route.pts.length);
+      const s = route.pts[start];
+      const n = route.pts[(start + 1) % route.pts.length];
+      const t = r();
+      p.place(s.x + (n.x - s.x) * t, s.z + (n.z - s.z) * t, 0);
+      p.walk(route.pts, { loop: true, speed: 1.1 + r() * 0.45, start: (start + 1) % route.pts.length, dir: 1 });
+    } else {
+      // Straight sidewalk routes walk back and forth.
       p.place(-120 + r() * 240, route.pts[0].z, 0);
+      p.walk(route.pts, { loop: true, speed: 1.1 + r() * 0.45, start: r() < 0.5 ? 0 : 1, dir: 1 });
     }
     civilians.push(p);
   }
-  // Groups standing and talking.
+  // Pairs standing and talking: one speaks, the other listens.
   for (const [x, z] of [[-20, -40], [22, -88], [-25, -90], [20, -38]]) {
-    const a = make(randomLook(), 1.7 + r() * 0.15);
-    const b = make(randomLook(), 1.7 + r() * 0.15);
+    const a = passerby();
+    const b = passerby();
     a.place(x - 0.6, z, Math.PI / 2);
     b.place(x + 0.6, z, -Math.PI / 2);
-    a.standStill(Math.PI / 2);
-    b.standStill(-Math.PI / 2);
+    a.standStill(Math.PI / 2, 'talk');
+    b.standStill(-Math.PI / 2, r() < 0.5 ? 'idle' : 'idle2');
     civilians.push(a, b);
   }
+  // A few people stopped on their phones near the benches.
+  for (const [x, z, face] of [[-12, -50, 0.6], [13, -46, -2.4], [-30, -70, 1.4]]) {
+    const p = passerby();
+    p.place(x, z, face);
+    p.standStill(face, 'phone');
+    civilians.push(p);
+  }
 
-  // The contact waits by the fountain, facing north toward Meridian Tower.
-  const contact = make({ suit: '#7b6a55', trousers: '#3b3f45', skin: '#c68e6e', hair: '#1a1410', tie: '#3c3c3c' }, 1.74);
+  // The contact waits by the fountain on the phone, facing north toward Meridian Tower.
+  const contactBase = rocketbox ? rocketbox[CONTACT_AVATAR] : fallback;
+  const contact = make(contactBase, { suit: '#7b6a55', trousers: '#3b3f45', skin: '#c68e6e', hair: '#1a1410', tie: '#3c3c3c' }, 1.76);
   contact.place(6.5, -79, Math.PI);
-  contact.standStill(Math.PI);
+  contact.standStill(Math.PI, 'phone');
   civilians.push(contact);
 
-  // The target: grey suit, red shirt.
-  const targetLook = { suit: '#6e7378', trousers: '#2d3138', skin: '#e0b49a', hair: '#3b2a1e', tie: '#b3261e' };
-  const target = make(targetLook, 1.82);
+  // The target. With Rocketbox: checked brown-grey suit, dark red shirt (Male_Adult_03).
+  const targetBase = rocketbox ? rocketbox[TARGET_AVATAR] : fallback;
+  const targetLook = { suit: '#6e7378', trousers: '#2d3138', skin: '#e0b49a', hair: '#3b2a1e', tie: '#b3261e', avatar: TARGET_AVATAR };
+  const target = make(targetBase, targetLook, 1.82);
   const door = LAYOUT.meridianDoor;
   target.place(door.x, door.z, 0);
   const car = LAYOUT.targetCar;
+  const meeting = { x: 5.2, z: -81 };
   target.walk([
     { x: door.x, z: door.z + 1 },
     { x: 9, z: -115 },
     { x: 8, z: -104.5 },
     { x: 6.5, z: -90 },
-    { x: 5.2, z: -81, wait: 26 },
+    { x: meeting.x, z: meeting.z, wait: 26, anim: 'talk' },
     { x: 11, z: -93 },
     { x: 18, z: -103 },
     { x: car.x - 2.4, z: -106.8 },
@@ -361,13 +571,18 @@ export async function createCrowd(scene) {
         target.index = 0;
         target.loop = false;
         target.wait = 0;
-        target.speed = 4.6;
+        target.speed = 4.4;
         target.mode = 'walk';
         target.panicDelay = 0.35;
       }
     },
     /** @param {number} dt */
     update(dt) {
+      // The contact hangs up and talks while the target stands with him.
+      if (contact.alive && contact.mode === 'idle') {
+        const meetingNow = target.alive && target.wait > 0 && Math.hypot(target.x - meeting.x, target.z - meeting.z) < 0.5;
+        contact.setIdle(meetingNow ? 'talk' : target.index > 4 ? 'idle' : 'phone');
+      }
       for (const p of all) p.update(dt);
     },
     /**
@@ -382,8 +597,9 @@ export async function createCrowd(scene) {
       }
       return best;
     },
-    gltf,
-    baseHeight
+    /** For the briefing photo: the target's model (a Base) and its height. */
+    gltf: targetBase,
+    baseHeight: targetBase.baseHeight
   };
 }
 
@@ -403,34 +619,40 @@ function ring(cx, cz, radius, n) {
 /**
  * Renders a briefing photo of the target into a canvas: head and shoulders, studio light.
  * @param {HTMLCanvasElement} canvas
- * @param {any} gltf
+ * @param {any} base the crowd's `gltf` (a Base), or a raw glTF for the fallback person
  * @param {number} baseHeight
  * @param {Look} look
  */
-export function renderPortrait(canvas, gltf, baseHeight, look) {
+export function renderPortrait(canvas, base, baseHeight, look) {
   let renderer;
   try {
     renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false, preserveDrawingBuffer: true });
   } catch (err) {
     return;
   }
+  /** @type {Base} */
+  const b = base && base.kind ? base : { kind: 'fallback', id: 'man-suit', female: false, gltf: base, baseHeight, clips: {} };
+  const w = canvas.clientWidth || 160;
+  const h = canvas.clientHeight || 200;
   renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
-  renderer.setSize(canvas.clientWidth || 160, canvas.clientHeight || 200, false);
+  renderer.setSize(w, h, false);
   renderer.outputColorSpace = THREE.SRGBColorSpace;
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
   const scene = new THREE.Scene();
   scene.background = new THREE.Color('#d9dde2');
-  scene.add(new THREE.HemisphereLight('#ffffff', '#6b6e73', 1.6));
-  const key = new THREE.DirectionalLight('#ffffff', 2.4);
+  scene.add(new THREE.HemisphereLight('#ffffff', '#6b6e73', 1.8));
+  const key = new THREE.DirectionalLight('#ffffff', 2.6);
   key.position.set(1.5, 2.5, 3);
   scene.add(key);
-  const p = new Person(gltf, baseHeight, look, 1.82);
+  const p = new Person(b, look, 1.82);
+  p.idleRole = 'idle';
   p.play('idle', 0);
-  p.mixer.update(0.5);
+  p.mixer.update(0.8);
   p.root.rotation.y = 0.25;
   scene.add(p.root);
-  const cam = new THREE.PerspectiveCamera(24, (canvas.clientWidth || 160) / (canvas.clientHeight || 200), 0.1, 20);
-  cam.position.set(0.2, 1.58, 2.2);
-  cam.lookAt(0, 1.52, 0);
+  const cam = new THREE.PerspectiveCamera(22, w / h, 0.1, 20);
+  cam.position.set(0.2, 1.6, 2.3);
+  cam.lookAt(0, 1.55, 0);
   renderer.render(scene, cam);
   renderer.dispose();
 }

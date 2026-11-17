@@ -4,6 +4,9 @@
 
 `people/Male_Adult_03, 04, 05, 07, 10, 11, 12, 17, 20` and `people/Female_Adult_02, 11` are avatars from the Microsoft Rocketbox library (https://github.com/microsoft/Microsoft-Rocketbox). Their animations come from the same library and are fetched during the build.
 
+Animations used (Microsoft Rocketbox, `Assets/Animations`, MIT, same notice as below), converted by `scripts/fetch-animations.mjs`:
+`m_walk_neutral_01`, `m_run_neutral_01`, `m_idle_breathe_01`, `m_idle_look_around_01`, `m_cell_phone_talk_01`, `m_gestic_talk_neutral_01`, `f_walk_neutral_01`, `f_run_neutral_01`, `f_idle_breathe_01`, `f_idle_look_around_01`, `f_cell_phone_textmessage`, `f_gestic_talk_neutral_01`.
+
 > Copyright (c) 2020 Microsoft
 >
 > Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
