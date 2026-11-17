@@ -1,10 +1,32 @@
 # Model credits
 
-| File | Model | Author | Licence | Source |
-|---|---|---|---|---|
-| `man-suit.glb` | Man in Suit (Animated Men Pack), animated | Quaternius | CC0 | https://poly.pizza/m/mQnGoME1ez |
-| `rifle.glb` | Sniper Rifle (Ultimate Guns Pack) | Quaternius | CC0 | https://poly.pizza/bundle/Ultimate-Guns-Pack-cpgUfI4t2F |
+## People: Microsoft Rocketbox Avatar Library (MIT)
 
-The city's sky, ground textures and props are CC0 assets from [Poly Haven](https://polyhaven.com), listed in `assets.json` and fetched during the build.
+`people/Male_Adult_03, 04, 05, 07, 10, 11, 12, 17, 20` and `people/Female_Adult_02, 11` are avatars from the Microsoft Rocketbox library (https://github.com/microsoft/Microsoft-Rocketbox). Their animations come from the same library and are fetched during the build.
 
-Realistic people from Mixamo will replace `man-suit.glb`; see the README.
+> Copyright (c) 2020 Microsoft
+>
+> Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+>
+> The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+>
+> THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+## Props (Sketchfab, CC Attribution 4.0)
+
+| File | Model | Author | Source |
+|---|---|---|---|
+| `props/sedan_wagon.glb` | Lowpoly Sedan & Wagon | Han66st | https://sketchfab.com/3d-models/e11a46478c674b279fe9d299b2125c30 |
+| `props/traffic_light.glb` | Low Poly & Game Ready Traffic Light | YourLocalJavaCarDealer | https://sketchfab.com/3d-models/79e7769b03c44ff19fec4e802e4df0aa |
+| `props/tree.glb` | Tree low poly lowpoly | 00amza | https://sketchfab.com/3d-models/tree-low-poly-lowpoly-73201f05280d48dcb10ed4ca362d69f8 |
+
+Licence: https://creativecommons.org/licenses/by/4.0/
+
+## Quaternius (CC0)
+
+| File | Model | Source |
+|---|---|---|
+| `man-suit.glb` | Man in Suit (Animated Men Pack), fallback person | https://poly.pizza/m/mQnGoME1ez |
+| `rifle.glb` | Sniper Rifle (Ultimate Guns Pack) | https://poly.pizza/bundle/Ultimate-Guns-Pack-cpgUfI4t2F |
+
+The sky, ground textures and street props are CC0 assets from Poly Haven, listed in `assets.json` and fetched during the build.
