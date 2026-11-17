@@ -45,3 +45,9 @@ The golden-hour sky is "Kloppenheim 06 (Pure Sky)". The brick and plaster walls 
 | `rifle_awm_nc.glb` | L11A3/AWP/AWM | Aronvctr | CC BY-NC-SA 4.0 (non-commercial) | https://sketchfab.com/3d-models/l11a3awpawm-976f084d925e4f6884a8c1d959c59d38 |
 
 Non-commercial licence: allowed in free test builds only. It must be replaced by a commercially licensed rifle before any release, ads or sales. `npm run check` lists it as a release blocker.
+
+## Bullet (CC Attribution 4.0)
+
+| Source | Model | Author | Source page |
+|---|---|---|---|
+| `assets-src/bullet/` (built into `game-assets/bullet/`) | Bullet | RoutineStudio | https://sketchfab.com/3d-models/bullet-8333d86fe2674aaf8888cc5fa4537d20 |

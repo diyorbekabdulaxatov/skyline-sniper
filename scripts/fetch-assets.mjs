@@ -48,7 +48,8 @@ async function shrinkImage(src, dest, size) {
   await sharp(src).resize(size, size, { fit: 'inside' }).jpeg({ quality: 82, mozjpeg: true }).toFile(dest);
 }
 
-const manifest = { sky: null, textures: {}, models: {}, credits: [] };
+/** @type {any} */
+const manifest = { sky: null, textures: {}, models: {}, credits: [], bullet: null };
 
 // Sky
 {
@@ -100,6 +101,25 @@ for (const { name, id } of list.models) {
   manifest.models[name] = name + '.glb';
   manifest.credits.push(id);
   console.log('model ', id, (statSync(dest).size / 1e6).toFixed(2) + ' MB');
+}
+
+// Local source assets (assets-src/): the bullet-cam bullet, textures shrunk to 1024 px.
+{
+  const src = join(root, 'assets-src', 'bullet');
+  if (existsSync(join(src, 'bullet.fbx'))) {
+    const dir = join(out, 'bullet');
+    mkdirSync(dir, { recursive: true });
+    writeFileSync(join(dir, 'bullet.fbx'), readFileSync(join(src, 'bullet.fbx')));
+    const maps = { map: 'basecolor', normal: 'normal', roughness: 'roughness', metalness: 'metallic' };
+    manifest.bullet = { fbx: 'bullet/bullet.fbx' };
+    for (const [slot, name] of Object.entries(maps)) {
+      const file = 'bullet/' + name + '.jpg';
+      if (sharp) await sharp(join(src, name + '.png')).resize(1024, 1024, { fit: 'inside' }).jpeg({ quality: 88 }).toFile(join(out, file));
+      else writeFileSync(join(out, 'bullet/' + name + '.png'), readFileSync(join(src, name + '.png')));
+      manifest.bullet[slot] = sharp ? file : 'bullet/' + name + '.png';
+    }
+    console.log('local  bullet');
+  }
 }
 
 writeFileSync(join(out, 'manifest.json'), JSON.stringify(manifest, null, 2));

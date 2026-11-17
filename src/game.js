@@ -6,6 +6,7 @@ import { KESTREL, zeroAngle, shotAt, step, segmentBox, SOUND_SPEED } from './bal
 import { drawScope, clearScope } from './scope.js';
 import { loadManifest, loadGLTF, measure } from './assets.js';
 import { setupLighting } from './lighting.js';
+import { FBXLoader } from 'three/addons/loaders/FBXLoader.js';
 import { buildCity, LAYOUT } from './city.js';
 import { createCrowd } from './people.js';
 import { HARBOR } from './missions.js';
@@ -73,6 +74,15 @@ export async function createGame(opts) {
   // Bullet for the bullet cam.
   // Bullet for the bullet cam: a boat-tail spitzer, drawn about four times real size so it reads on screen.
   const bulletMesh = makeBullet();
+  // Swap in the textured bullet model once it loads; the lathe bullet stays if it does not.
+  loadBulletModel(manifest)
+    .then((m) => {
+      if (!m) return;
+      bulletMesh.geometry.dispose();
+      bulletMesh.geometry = m.geometry;
+      bulletMesh.material = m.material;
+    })
+    .catch((err) => console.warn('Bullet model did not load; keeping the simple bullet.', err));
   bulletMesh.visible = false;
   scene.add(bulletMesh);
   const trail = makeTrail(scene);
@@ -803,6 +813,65 @@ export async function createGame(opts) {
       }
     }
   };
+}
+
+/**
+ * The bullet-cam bullet from assets-src/bullet (Bullet by RoutineStudio, CC BY 4.0), processed
+ * in CI into game-assets/bullet. Returns geometry and material with the tip along +z, centred,
+ * the same size as makeBullet(), or null when the files are missing.
+ * @param {any} manifest
+ */
+async function loadBulletModel(manifest) {
+  if (!manifest || !manifest.bullet) return null;
+  const base = './game-assets/';
+  const b = manifest.bullet;
+  const obj = await new FBXLoader().loadAsync(base + b.fbx);
+  const tl = new THREE.TextureLoader();
+  const [map, normalMap, roughnessMap, metalnessMap] = await Promise.all(
+    [b.map, b.normal, b.roughness, b.metalness].map((f) => tl.loadAsync(base + f))
+  );
+  map.colorSpace = THREE.SRGBColorSpace;
+  const material = new THREE.MeshStandardMaterial({
+    map, normalMap, roughnessMap, metalnessMap, metalness: 1, roughness: 1, envMapIntensity: 1.6
+  });
+  obj.updateMatrixWorld(true);
+  /** @type {any} assigned inside traverse(), which type narrowing cannot follow */
+  let geo = null;
+  obj.traverse((o) => {
+    const mesh = /** @type {any} */ (o);
+    if (geo || !mesh.isMesh) return;
+    geo = mesh.geometry.clone();
+    geo.applyMatrix4(mesh.matrixWorld);
+  });
+  if (!geo) return null;
+  geo.computeBoundingBox();
+  const bb = geo.boundingBox;
+  const size = bb.getSize(new THREE.Vector3());
+  const center = bb.getCenter(new THREE.Vector3());
+  const axis = size.x >= size.y && size.x >= size.z ? 0 : size.y >= size.z ? 1 : 2;
+  const others = [0, 1, 2].filter((i) => i !== axis);
+  // The tip is the narrower end: compare the average radius near each end.
+  const pos = geo.attributes.position;
+  const len = size.getComponent(axis);
+  const lo = bb.min.getComponent(axis);
+  const hi = bb.max.getComponent(axis);
+  let rLo = 0, nLo = 0, rHi = 0, nHi = 0;
+  const v = new THREE.Vector3();
+  for (let i = 0; i < pos.count; i++) {
+    v.fromBufferAttribute(pos, i);
+    const t = v.getComponent(axis);
+    const r = Math.hypot(v.getComponent(others[0]) - center.getComponent(others[0]), v.getComponent(others[1]) - center.getComponent(others[1]));
+    if (t < lo + len * 0.1) { rLo += r; nLo++; } else if (t > hi - len * 0.1) { rHi += r; nHi++; }
+  }
+  const tipAtHi = rHi / Math.max(1, nHi) < rLo / Math.max(1, nLo);
+  const from = new THREE.Vector3();
+  from.setComponent(axis, tipAtHi ? 1 : -1);
+  geo.translate(-center.x, -center.y, -center.z);
+  geo.applyQuaternion(new THREE.Quaternion().setFromUnitVectors(from, new THREE.Vector3(0, 0, 1)));
+  const k = (0.032 * 4) / len;
+  geo.scale(k, k, k);
+  geo.computeBoundingSphere();
+  return { geometry: geo, material };
 }
 
 /** A copper boat-tail bullet with a cannelure, tip pointing along +z, centred on its middle. */

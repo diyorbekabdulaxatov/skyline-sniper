@@ -47,7 +47,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: .cache
-          key: polyhaven-${{ hashFiles('assets.json') }}
+          key: polyhaven-${{ hashFiles('assets.json', 'assets-src/**') }}
           restore-keys: polyhaven-
 
       - name: Fetch and shrink assets
