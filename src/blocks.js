@@ -376,7 +376,9 @@ function signAtlas() {
 }
 
 /** A simple poster: headline, a line of copy and a coloured band. */
-function adTexture([headline, line, bg, accent]) {
+/** @param {string[]} ad headline, line, background, accent */
+function adTexture(ad) {
+  const [headline, line, bg, accent] = ad;
   const c = document.createElement('canvas');
   c.width = 512;
   c.height = 205;
