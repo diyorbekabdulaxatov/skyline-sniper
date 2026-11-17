@@ -10,7 +10,8 @@
     "test": "node --test test/*.test.js",
     "assets": "node scripts/fetch-assets.mjs",
     "build": "vite build",
-    "android": "node scripts/android.mjs"
+    "android": "node scripts/android.mjs",
+    "anims": "node scripts/fetch-animations.mjs"
   },
   "dependencies": {
     "@capacitor/app": "8.1.2",
