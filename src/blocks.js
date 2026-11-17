@@ -170,7 +170,8 @@ export function createDecor(r) {
       const add = (mesh, shadow) => {
         mesh.castShadow = !!shadow;
         mesh.receiveShadow = true;
-        mesh.computeBoundingSphere();
+        // Instanced meshes need fresh bounds after placement; plain meshes use their geometry's.
+        if (mesh.isInstancedMesh) mesh.computeBoundingSphere();
         scene.add(mesh);
         return mesh;
       };

@@ -63,7 +63,7 @@ button { cursor: pointer; }
 .stat small { font-size: 12px; color: var(--muted); margin-left: 2px; }
 #btn-pause { width: 40px; height: 40px; border-radius: 10px; border: 1px solid var(--line); background: var(--glass); font-weight: 600; }
 #hud-intel {
-  position: absolute; top: calc(8px + var(--st)); left: calc(14px + var(--sl)); transform: translateY(-6px);
+  position: absolute; top: calc(54px + var(--st)); left: calc(14px + var(--sl)); transform: translateY(-6px);
   width: min(30vw, 330px); padding: 8px 12px; border-radius: 10px;
   background: var(--glass); border: 1px solid var(--line); backdrop-filter: blur(6px);
   font-size: 13px; line-height: 1.4; opacity: 0; transition: opacity .3s, transform .3s;
@@ -100,7 +100,7 @@ button { cursor: pointer; }
 #target-marker i { display: none; }
 #hud.on-target #crosshair::before, #hud.on-target #crosshair::after { background: #46dc78; }
 #hud-hint {
-  position: absolute; z-index: 5; transform: translate(-50%, calc(-100% - 18px)); max-width: 260px;
+  position: absolute; z-index: 5; transform: translate(-50%, calc(-100% - 18px)); width: max-content; max-width: 240px;
   padding: 9px 13px; border-radius: 10px; background: #fff; color: #111;
   font: 700 15px/1.25 var(--f-display); letter-spacing: .02em; text-align: center; pointer-events: none;
   box-shadow: 0 6px 18px rgba(0,0,0,.4); animation: bob 1.2s ease-in-out infinite;

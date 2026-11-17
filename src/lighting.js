@@ -9,10 +9,14 @@ import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { Lensflare, LensflareElement } from 'three/addons/objects/Lensflare.js';
 import { loadSky } from './assets.js';
 
-/** Where the sun should appear: angle about y from +z toward +x (the player looks along -z). */
-const SUN_AZIMUTH = Math.PI + 1.15;
+/**
+ * Where the sun should appear: angle about y from +z toward +x (the player looks along -z).
+ * West and a little behind the player, so the facades the player faces are lit, the plaza is
+ * not in the towers' shadow, and the sun and its flare show when the player turns left.
+ */
+const SUN_AZIMUTH = -1.25;
 /** The shadow light never goes lower than this, so the plaza is not lost in long shadows. */
-const MIN_LIGHT_ELEVATION = 0.26;
+const MIN_LIGHT_ELEVATION = 0.36;
 const PLAZA = new THREE.Vector3(0, 0, -70);
 
 /**

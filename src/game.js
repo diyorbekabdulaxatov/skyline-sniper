@@ -207,7 +207,7 @@ export async function createGame(opts) {
     // Bullet cam when this shot will kill the target.
     if (settings.bulletCam && willHitTarget(b)) {
       s.mode = 'bulletcam';
-      s.timeScale = 0.03;
+      s.timeScale = 0.04;
       s.cam = { bullet: b, hold: -1 };
       bulletMesh.visible = true;
       hud.cinematic(true);
@@ -568,7 +568,7 @@ export async function createGame(opts) {
       bulletMesh.rotateZ(realDt * 6);
       setFov(36);
       // Speed up a little in the middle of long flights, slow down near the end.
-      s.timeScale = Math.min(0.1, s.timeScale + realDt * 0.025);
+      s.timeScale = Math.min(0.15, s.timeScale + realDt * 0.05);
     } else if (c.hold >= 0) {
       bulletMesh.visible = false;
       const f = c.focus;
