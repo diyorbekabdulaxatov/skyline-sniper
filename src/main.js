@@ -172,8 +172,25 @@ $('btn-resume').addEventListener('click', () => {
   show(null);
   game.resume();
 });
-$('btn-restart').addEventListener('click', () => game.restart());
-$('btn-quit').addEventListener('click', () => location.reload());
+$('btn-restart').addEventListener('click', () => restartContract());
+$('btn-quit').addEventListener('click', () => backToMenu());
+
+/** Shows a short loading screen while the people are rebuilt, then plays again. */
+async function restartContract() {
+  loadingText.textContent = 'Resetting the plaza';
+  show('loading');
+  await game.restart();
+  show(null);
+}
+
+async function backToMenu() {
+  loadingText.textContent = 'Resetting the plaza';
+  show('loading');
+  await game.toMenu();
+  showBest();
+  showWallet();
+  show('menu');
+}
 $('btn-pause-settings').addEventListener('click', () => openSettings('pause'));
 document.addEventListener('visibilitychange', () => {
   if (document.hidden) pauseGame();
@@ -190,7 +207,7 @@ if (cap && cap.isNativePlatform && cap.isNativePlatform() && cap.Plugins && cap.
       show(null);
       game.resume();
     } else if (open === 'settings') $('btn-settings-done').click();
-    else if (open === 'results') location.reload();
+    else if (open === 'results') backToMenu();
     else cap.Plugins.App.exitApp();
   });
 }
@@ -295,8 +312,8 @@ function showResults(r) {
   row(win ? 'Paid' : 'No payment', '$' + pay.cash + '  \u00b7  +' + pay.xp + ' XP' + (levelAfter > levelBefore ? '  \u00b7  Level ' + levelAfter + '!' : ''), 'total');
   setTimeout(() => show('results'), win ? 300 : 0);
 }
-$('btn-retry').addEventListener('click', () => game.restart());
-$('btn-results-menu').addEventListener('click', () => location.reload());
+$('btn-retry').addEventListener('click', () => restartContract());
+$('btn-results-menu').addEventListener('click', () => backToMenu());
 
 // ---------- helpers ----------
 

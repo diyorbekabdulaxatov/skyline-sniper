@@ -60,7 +60,7 @@ export async function createGame(opts) {
   progress('Building Harbor Plaza');
   const city = await buildCity(scene, manifest);
   progress('Filling the plaza');
-  const crowd = await createCrowd(scene);
+  let crowd = await createCrowd(scene);
 
   const camera = new THREE.PerspectiveCamera(BASE_FOV, 1, 0.1, 6000);
   camera.rotation.order = 'YXZ';
@@ -698,18 +698,40 @@ export async function createGame(opts) {
     return holder;
   }
 
+  /**
+   * Puts the contract back to its start without reloading the page: the city stays, only the
+   * people are rebuilt (their models and animations are cached, so this takes a moment).
+   */
+  async function resetContract() {
+    s.mode = 'menu';
+    s.bullets = [];
+    for (const p of [...crowd.civilians, crowd.target]) scene.remove(p.root);
+    crowd = await createCrowd(scene);
+    city.targetCar.position.set(LAYOUT.targetCar.x, city.targetCar.position.y, LAYOUT.targetCar.z);
+    s = freshState();
+    bulletMesh.visible = false;
+    hud.reset();
+    hud.cinematic(false);
+    clearScope(scopeCtx, view.w, view.h, view.dpr);
+    scopeDrawn = false;
+    camera.fov = BASE_FOV;
+    camera.updateProjectionMatrix();
+  }
+
   return {
     mission,
-    crowd,
+    get crowd() {
+      return crowd;
+    },
     portraitSource: { gltf: crowd.gltf, baseHeight: crowd.baseHeight, look: crowd.targetLook },
-    /** Restarts the contract: the page reloads and starts playing straight away. */
-    restart() {
-      try {
-        sessionStorage.setItem('skyline.autostart', '1');
-      } catch (err) {
-        /* storage blocked: the menu shows instead */
-      }
-      location.reload();
+    /** Restarts the contract in place and starts playing. */
+    async restart() {
+      await resetContract();
+      this.begin();
+    },
+    /** Back to the menu with a fresh contract, without reloading. */
+    async toMenu() {
+      await resetContract();
     },
     begin() {
       s = freshState();

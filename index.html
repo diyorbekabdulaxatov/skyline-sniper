@@ -221,7 +221,23 @@ button { cursor: pointer; }
 .credits h3 { font: 700 15px/1.2 var(--f-display); color: var(--text); letter-spacing: .06em; text-transform: uppercase; margin: 10px 0 4px; }
 .credits p { margin: 0 0 6px; }
 .credits a { color: var(--accent); }
-.results-stars { font-size: 34px; letter-spacing: .12em; }
+.results-stars { font-size: 34px; letter-spacing: .12em; line-height: 1; }
+/* Results fit a landscape phone without scrolling: story and stats left, payout and buttons right. */
+#screen-results .panel { width: min(780px, 100%); flex-direction: row; gap: 28px; align-items: stretch; }
+.results-main, .results-side { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; gap: 10px; }
+.results-side { justify-content: space-between; }
+#screen-results .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+#screen-results .actions { flex-direction: column; }
+@media (max-height: 430px) {
+  #screen-results .panel { padding: 14px 18px; gap: 8px 24px; }
+  #screen-results .panel > h2 { font-size: 24px; }
+  .results-stars { font-size: 26px; }
+  #screen-results .stats span { font-size: 19px; }
+  #screen-results .btn { padding: 10px 16px; }
+}
+@media (max-width: 560px) {
+  #screen-results .panel { flex-direction: column; }
+}
 .results-stars[data-tone="good"] { color: var(--accent); }
 .results-stars[data-tone="bad"] { color: var(--muted); }
 .stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
@@ -372,19 +388,23 @@ button { cursor: pointer; }
 
 <section id="screen-results" class="screen" hidden>
   <div class="panel">
-    <h2 id="results-title">Contract complete</h2>
-    <div class="results-stars" id="results-stars" data-tone="good"></div>
-    <p class="tagline" id="results-line" style="margin:0"></p>
-    <div class="stats">
-      <div><b>Time</b><span id="res-time">0:00</span></div>
-      <div><b>Shots</b><span id="res-shots">0</span></div>
-      <div><b>Distance</b><span id="res-distance">---</span></div>
-      <div><b>Headshot</b><span id="res-head">No</span></div>
+    <div class="results-main">
+      <h2 id="results-title">Contract complete</h2>
+      <div class="results-stars" id="results-stars" data-tone="good"></div>
+      <p class="tagline" id="results-line" style="margin:0"></p>
+      <div class="stats">
+        <div><b>Time</b><span id="res-time">0:00</span></div>
+        <div><b>Shots</b><span id="res-shots">0</span></div>
+        <div><b>Distance</b><span id="res-distance">---</span></div>
+        <div><b>Headshot</b><span id="res-head">No</span></div>
+      </div>
     </div>
-    <ul class="rewards" id="results-rewards"></ul>
-    <div class="actions">
-      <button id="btn-retry" class="btn btn-primary" type="button">Play again</button>
-      <button id="btn-results-menu" class="btn btn-quiet" type="button">Menu</button>
+    <div class="results-side">
+      <ul class="rewards" id="results-rewards"></ul>
+      <div class="actions">
+        <button id="btn-retry" class="btn btn-primary" type="button">Play again</button>
+        <button id="btn-results-menu" class="btn btn-quiet" type="button">Menu</button>
+      </div>
     </div>
   </div>
 </section>
