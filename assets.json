@@ -1,0 +1,60 @@
+{
+  "comment": "CC0 assets from Poly Haven (https://polyhaven.com), fetched and shrunk in CI by scripts/fetch-assets.mjs. Ids are Poly Haven asset ids.",
+  "hdri": {
+    "name": "sky",
+    "id": "kloofendal_48d_partly_cloudy_puresky",
+    "res": "2k"
+  },
+  "textures": [
+    {
+      "name": "asphalt",
+      "id": "asphalt_02",
+      "res": "1k"
+    },
+    {
+      "name": "sidewalk",
+      "id": "pavement_02",
+      "res": "1k"
+    },
+    {
+      "name": "roof",
+      "id": "concrete_floor_worn_001",
+      "res": "1k"
+    },
+    {
+      "name": "plaza",
+      "id": "large_floor_tiles_02",
+      "res": "1k"
+    }
+  ],
+  "models": [
+    {
+      "name": "aircon",
+      "id": "exterior_aircon_unit"
+    },
+    {
+      "name": "airduct",
+      "id": "modular_airduct_rectangular_01"
+    },
+    {
+      "name": "utility_box",
+      "id": "utility_box_02"
+    },
+    {
+      "name": "barrier",
+      "id": "concrete_road_barrier"
+    },
+    {
+      "name": "hydrant",
+      "id": "fire_hydrant"
+    },
+    {
+      "name": "seating",
+      "id": "modular_street_seating"
+    },
+    {
+      "name": "covered_car",
+      "id": "covered_car"
+    }
+  ]
+}

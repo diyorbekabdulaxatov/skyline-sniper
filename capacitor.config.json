@@ -1,0 +1,8 @@
+{
+  "appId": "com.diyorbek.skylinesniper",
+  "appName": "Skyline Sniper",
+  "webDir": "dist",
+  "android": {
+    "backgroundColor": "#0e141b"
+  }
+}
