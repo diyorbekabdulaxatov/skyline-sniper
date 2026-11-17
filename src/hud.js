@@ -72,7 +72,7 @@ export function createHud() {
     intel(text) {
       el.intel.textContent = text;
       el.intel.classList.add('on');
-      intelTimer = 4 + text.length * 0.045;
+      intelTimer = 3.5;
     },
     /** @param {string} text @param {'good' | 'bad' | 'plain'} tone */
     flash(text, tone) {
@@ -130,6 +130,10 @@ export function createHud() {
         last.markerDist = dist;
         el.marker.dataset.dist = dist;
       }
+    },
+    /** Sets the zoom slider's top end to the rifle's maximum magnification. */
+    zoomRange(max) {
+      el.zoom.max = String(max);
     },
     /** Crosshair turns green when it is on the target. */
     onTarget(on) {

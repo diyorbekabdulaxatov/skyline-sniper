@@ -222,6 +222,60 @@ button { cursor: pointer; }
 .credits p { margin: 0 0 6px; }
 .credits a { color: var(--accent); }
 .results-stars { font-size: 34px; letter-spacing: .12em; line-height: 1; }
+/* Main menu navigation, Contracts and Armory */
+.menu-nav { display: grid; gap: 8px; margin-top: 16px; max-width: 280px; }
+.nav-btn {
+  display: grid; text-align: left; gap: 2px; padding: 10px 14px; border-radius: 12px;
+  background: var(--glass-strong); border: 1px solid var(--line); backdrop-filter: blur(6px);
+}
+.nav-btn b { font: 700 17px/1 var(--f-display); letter-spacing: .1em; text-transform: uppercase; }
+.nav-btn span { font-size: 11.5px; color: var(--muted); }
+.nav-btn:hover { border-color: var(--accent); }
+.btn-play { font-size: 20px; padding: 14px 34px; letter-spacing: .2em; }
+.panel.wide { width: min(800px, 100%); }
+.panel-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.actions.row { flex-direction: row; justify-content: flex-end; }
+.contract-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.contract-card { display: flex; flex-direction: column; gap: 6px; padding: 12px; border-radius: 12px; background: rgba(255,255,255,.05); border: 1px solid var(--line); min-height: 150px; }
+.contract-card .num { font: 700 11px/1 var(--f-display); letter-spacing: .2em; color: var(--accent); }
+.contract-card h3 { font: 700 20px/1.05 var(--f-display); margin: 0; letter-spacing: .03em; }
+.contract-card .where { font-size: 11.5px; color: var(--muted); }
+.contract-card .stars { color: var(--accent); font-size: 18px; letter-spacing: .1em; margin-top: auto; }
+.contract-card .lock { margin-top: auto; font-size: 12px; color: var(--muted); display: flex; gap: 6px; align-items: center; }
+.contract-card.locked { opacity: .6; }
+.contract-card .btn { padding: 9px 12px; font-size: 14px; }
+.armory { flex-direction: row; gap: 22px; }
+.armory-left, .armory-right { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; gap: 10px; }
+#armory-rifle { width: 100%; height: 150px; display: block; touch-action: none; cursor: grab; border-radius: 12px; background: radial-gradient(ellipse at center, rgba(255,255,255,.08), transparent 70%); }
+.rifle-tabs { display: flex; gap: 8px; }
+.rifle-tab { flex: 1; padding: 8px 10px; border-radius: 10px; border: 1px solid var(--line); background: rgba(255,255,255,.05); text-align: left; display: grid; gap: 2px; }
+.rifle-tab b { font: 700 15px/1 var(--f-display); letter-spacing: .06em; }
+.rifle-tab span { font-size: 11px; color: var(--muted); }
+.rifle-tab[aria-pressed="true"] { border-color: var(--accent); background: rgba(255,178,62,.12); }
+.rifle-tab:disabled { opacity: .55; cursor: default; }
+.rifle-desc { margin: 0; font-size: 12px; color: var(--muted); line-height: 1.45; }
+.upgrades { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.upgrade { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 10px; align-items: center; padding: 8px 10px; border-radius: 10px; background: rgba(255,255,255,.05); }
+.upgrade .name { font: 700 15px/1 var(--f-display); letter-spacing: .08em; text-transform: uppercase; }
+.upgrade .value { font-size: 11.5px; color: var(--muted); }
+.upgrade .value em { font-style: normal; color: var(--ok); }
+.pips { display: flex; gap: 4px; }
+.pips i { width: 16px; height: 5px; border-radius: 2px; background: rgba(255,255,255,.15); }
+.pips i.on { background: var(--accent); }
+.upgrade .btn { grid-row: 1 / span 3; grid-column: 2; padding: 9px 12px; font-size: 13px; min-width: 96px; }
+.upgrade .btn:disabled { opacity: .45; cursor: default; }
+@media (max-height: 430px) {
+  .menu-nav { margin-top: 10px; gap: 6px; }
+  .nav-btn { padding: 7px 12px; }
+  #armory-rifle { height: 110px; }
+  .contract-card { min-height: 120px; }
+  .upgrades { gap: 6px; }
+  .upgrade { padding: 6px 10px; }
+}
+@media (max-width: 640px) {
+  .contract-grid { grid-template-columns: minmax(0, 1fr); }
+  .armory { flex-direction: column; }
+}
 /* Results fit a landscape phone without scrolling: story and stats left, payout and buttons right. */
 #screen-results .panel { width: min(780px, 100%); flex-direction: row; gap: 28px; align-items: stretch; }
 .results-main, .results-side { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; gap: 10px; }
@@ -306,7 +360,11 @@ button { cursor: pointer; }
   <div class="title-block">
     <h1 class="brand">Skyline<br><em>Sniper</em></h1>
     <p class="tagline">Find the target. Read the wind. Take the shot.</p>
-    <p class="hint">Drag to aim, Scope to zoom, hold breath to steady, Fire.<br>Keyboard: E scope, Shift breath, Space fire, wheel zoom, R reload.</p>
+    <nav class="menu-nav" aria-label="Main menu">
+      <button id="btn-nav-contracts" class="nav-btn" type="button"><b>Contracts</b><span id="nav-contracts-sub">1 of 3 open</span></button>
+      <button id="btn-nav-armory" class="nav-btn" type="button"><b>Armory</b><span id="nav-armory-sub">Upgrade your rifle</span></button>
+      <button id="btn-menu-settings" class="nav-btn" type="button"><b>Settings</b><span>Graphics, aim, sound</span></button>
+    </nav>
   </div>
   <div class="card">
     <div class="eyebrow" id="contract-number">Contract 01</div>
@@ -321,8 +379,30 @@ button { cursor: pointer; }
     <p class="briefing" id="contract-briefing"></p>
     <p class="best" id="contract-best"></p>
     <div class="actions">
-      <button id="btn-start" class="btn btn-primary" type="button">Start contract</button>
-      <button id="btn-menu-settings" class="btn btn-quiet" type="button">Settings</button>
+      <button id="btn-start" class="btn btn-primary btn-play" type="button">Play</button>
+    </div>
+  </div>
+</section>
+
+<section id="screen-contracts" class="screen" hidden>
+  <div class="panel wide">
+    <div class="panel-head"><h2>Contracts</h2><div class="chip"><b>$</b><span class="cash-now">0</span></div></div>
+    <div class="contract-grid" id="contract-grid"></div>
+    <div class="actions row"><button id="btn-contracts-back" class="btn btn-quiet" type="button">Back</button></div>
+  </div>
+</section>
+
+<section id="screen-armory" class="screen" hidden>
+  <div class="panel wide armory">
+    <div class="armory-left">
+      <div class="panel-head"><h2>Armory</h2><div class="chip"><b>$</b><span class="cash-now">0</span></div></div>
+      <canvas id="armory-rifle" aria-label="The equipped rifle, turning slowly. Drag to turn it."></canvas>
+      <div class="rifle-tabs" id="rifle-tabs"></div>
+      <p class="rifle-desc" id="rifle-desc"></p>
+    </div>
+    <div class="armory-right">
+      <ul class="upgrades" id="upgrade-list"></ul>
+      <div class="actions row"><button id="btn-armory-back" class="btn btn-quiet" type="button">Back</button></div>
     </div>
   </div>
 </section>

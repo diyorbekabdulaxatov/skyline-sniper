@@ -8,9 +8,11 @@ import { renderPortrait } from './people.js';
 import { HARBOR } from './missions.js';
 import { loadSettings, saveSettings, loadBest, saveBest } from './settings.js';
 import { loadProgress, saveProgress, levelOf, rewardFor } from './progress.js';
+import { RIFLES, UPGRADES, CONTRACTS, upgradeLevel, nextPrice, buyUpgrade, loadoutFor } from './armory.js';
+import { createArmoryView } from './armory-view.js';
 
 const $ = (id) => /** @type {HTMLElement} */ (document.getElementById(id));
-const SCREENS = ['loading', 'menu', 'pause', 'settings', 'credits', 'results'];
+const SCREENS = ['loading', 'menu', 'contracts', 'armory', 'pause', 'settings', 'credits', 'results'];
 
 let settings = loadSettings();
 let settingsReturn = 'menu';
@@ -42,7 +44,136 @@ window.addEventListener('pointerdown', () => {
 function show(name) {
   for (const s of SCREENS) $('screen-' + s).hidden = s !== name;
   hud.show(name === null);
+  if (name === 'armory') armoryView.show();
+  else armoryView.hide();
 }
+
+const armoryView = createArmoryView(/** @type {HTMLCanvasElement} */ ($('armory-rifle')));
+
+// ---------- Contracts ----------
+
+function renderContracts() {
+  const grid = $('contract-grid');
+  grid.textContent = '';
+  for (const c of CONTRACTS) {
+    const card = document.createElement('div');
+    card.className = 'contract-card' + (c.playable ? '' : ' locked');
+    const num = document.createElement('div');
+    num.className = 'num';
+    num.textContent = 'Contract ' + String(c.number).padStart(2, '0');
+    const h = document.createElement('h3');
+    h.textContent = c.title;
+    const where = document.createElement('div');
+    where.className = 'where';
+    where.textContent = c.district;
+    card.append(num, h, where);
+    if (c.playable) {
+      const best = loadBest(c.id) || 0;
+      const stars = document.createElement('div');
+      stars.className = 'stars';
+      stars.textContent = '\u2605'.repeat(best) + '\u2606'.repeat(3 - best);
+      const play = document.createElement('button');
+      play.className = 'btn btn-primary';
+      play.type = 'button';
+      play.textContent = best ? 'Play again' : 'Play';
+      play.addEventListener('click', () => startMission());
+      card.append(stars, play);
+    } else {
+      const lock = document.createElement('div');
+      lock.className = 'lock';
+      lock.textContent = 'Locked: ' + c.needs;
+      card.append(lock);
+    }
+    grid.appendChild(card);
+  }
+}
+$('btn-nav-contracts').addEventListener('click', () => {
+  renderContracts();
+  showCash();
+  show('contracts');
+});
+$('btn-contracts-back').addEventListener('click', () => show('menu'));
+
+// ---------- Armory ----------
+
+function showCash() {
+  for (const el of document.querySelectorAll('.cash-now')) el.textContent = progress.cash.toLocaleString('en-US');
+}
+
+function renderArmory() {
+  const level = levelOf(progress.xp).level;
+  const tabs = $('rifle-tabs');
+  tabs.textContent = '';
+  for (const r of RIFLES) {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'rifle-tab';
+    const owned = !r.unlock;
+    b.setAttribute('aria-pressed', String(progress.rifle === r.id));
+    b.disabled = !owned;
+    const name = document.createElement('b');
+    name.textContent = r.name;
+    const sub = document.createElement('span');
+    sub.textContent = owned ? r.calibre : 'Locked: level ' + r.unlock.level + (level >= r.unlock.level ? ' \u00b7 coming soon' : '');
+    b.append(name, sub);
+    tabs.appendChild(b);
+  }
+  const rifle = RIFLES.find((r) => r.id === progress.rifle) || RIFLES[0];
+  $('rifle-desc').textContent = rifle.description;
+  const list = $('upgrade-list');
+  list.textContent = '';
+  for (const u of UPGRADES) {
+    const lv = upgradeLevel(progress, rifle.id, u.id);
+    const price = nextPrice(progress, rifle.id, u);
+    const li = document.createElement('li');
+    li.className = 'upgrade';
+    const name = document.createElement('div');
+    name.className = 'name';
+    name.textContent = u.name;
+    const value = document.createElement('div');
+    value.className = 'value';
+    value.textContent = u.format(u.values[lv]);
+    if (price !== null) {
+      const next = document.createElement('em');
+      next.textContent = '  \u2192 ' + u.format(u.values[lv + 1]);
+      value.appendChild(next);
+    }
+    const pips = document.createElement('div');
+    pips.className = 'pips';
+    for (let i = 0; i < u.prices.length; i++) {
+      const p = document.createElement('i');
+      if (i < lv) p.className = 'on';
+      pips.appendChild(p);
+    }
+    const buy = document.createElement('button');
+    buy.type = 'button';
+    buy.className = 'btn btn-primary';
+    if (price === null) {
+      buy.textContent = 'Max';
+      buy.disabled = true;
+    } else {
+      buy.textContent = '$' + price.toLocaleString('en-US');
+      buy.disabled = progress.cash < price;
+      buy.title = progress.cash < price ? 'Earn $' + (price - progress.cash).toLocaleString('en-US') + ' more' : 'Upgrade ' + u.name;
+      buy.addEventListener('click', () => {
+        if (!buyUpgrade(progress, rifle.id, u)) return;
+        saveProgress(progress);
+        audio.unlock();
+        renderArmory();
+        showCash();
+        showWallet();
+      });
+    }
+    li.append(name, buy, value, pips);
+    list.appendChild(li);
+  }
+}
+$('btn-nav-armory').addEventListener('click', () => {
+  renderArmory();
+  showCash();
+  show('armory');
+});
+$('btn-armory-back').addEventListener('click', () => show('menu'));
 
 // ---------- contract card ----------
 
@@ -117,6 +248,7 @@ function startMission() {
   enterFullscreen();
   if (settings.gyro !== 'off') input.requestGyroPermission();
   show(null);
+  game.setLoadout(loadoutFor(progress));
   game.begin();
 }
 
@@ -179,6 +311,7 @@ $('btn-quit').addEventListener('click', () => backToMenu());
 async function restartContract() {
   loadingText.textContent = 'Resetting the plaza';
   show('loading');
+  game.setLoadout(loadoutFor(progress));
   await game.restart();
   show(null);
 }
@@ -207,6 +340,8 @@ if (cap && cap.isNativePlatform && cap.isNativePlatform() && cap.Plugins && cap.
       show(null);
       game.resume();
     } else if (open === 'settings') $('btn-settings-done').click();
+    else if (open === 'contracts' || open === 'armory') show('menu');
+    else if (open === 'credits') show('settings');
     else if (open === 'results') backToMenu();
     else cap.Plugins.App.exitApp();
   });

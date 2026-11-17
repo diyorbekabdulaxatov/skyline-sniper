@@ -6,6 +6,7 @@ import { KESTREL, zeroAngle, shotAt, step, segmentBox, SOUND_SPEED } from './bal
 import { drawScope, clearScope } from './scope.js';
 import { loadManifest, loadGLTF, measure } from './assets.js';
 import { setupLighting } from './lighting.js';
+import { loadFittedRifle } from './rifle-model.js';
 import { FBXLoader } from 'three/addons/loaders/FBXLoader.js';
 import { buildCity, LAYOUT } from './city.js';
 import { createCrowd } from './people.js';
@@ -14,7 +15,8 @@ import { HARBOR } from './missions.js';
 const BASE_FOV = 55;
 const SCOPE_REF_FOV = 28;
 const ZOOM_MIN = 2;
-const ZOOM_MAX = 16;
+/** Default top magnification; the Scope upgrade raises it (see armory.js). */
+const ZOOM_MAX = 12;
 const YAW_LIMIT = 1.25;
 const PITCH_MIN = -0.95;
 const PITCH_MAX = 0.35;
@@ -99,6 +101,8 @@ export async function createGame(opts) {
   const view = { w: 1, h: 1, dpr: 1 };
   const perf = { frames: 0, total: 0, checked: false, auto: 'high' };
   let steady = false;
+  /** Upgrades of the equipped rifle (armory.js loadoutFor); main.js sets it before each contract. */
+  let loadout = { maxZoom: ZOOM_MAX, swayMul: 1, breathTime: 5, boltMul: 1 };
   let s = freshState();
   let scopeDrawn = false;
   let rangeTimer = 0;
@@ -208,7 +212,7 @@ export async function createGame(opts) {
     s.bullets.push(b);
     s.ammo--;
     s.shots++;
-    s.bolt = rifle.boltTime;
+    s.bolt = rifle.boltTime * loadout.boltMul;
     s.recoil += s.scoped ? 0.03 : 0.05;
     audio.shot();
     audio.bolt(0.45);
@@ -239,7 +243,7 @@ export async function createGame(opts) {
 
   function startReload() {
     if (s.mode !== 'playing' || s.reload > 0 || s.ammo === rifle.magazine) return;
-    s.reload = rifle.reloadTime;
+    s.reload = rifle.reloadTime * loadout.boltMul;
     audio.reload();
   }
 
@@ -250,7 +254,7 @@ export async function createGame(opts) {
   }
 
   function setZoom(z) {
-    s.zoom = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, z));
+    s.zoom = Math.min(loadout.maxZoom, Math.max(ZOOM_MIN, z));
   }
 
   function setBreath(on) {
@@ -311,7 +315,7 @@ export async function createGame(opts) {
     if (Math.abs(targetFov - s.fov) < 0.01) s.fov = targetFov;
 
     if (s.holding) {
-      s.breath -= dt / 5;
+      s.breath -= dt / loadout.breathTime;
       if (s.breath <= 0) {
         s.breath = 0;
         s.holding = false;
@@ -322,7 +326,7 @@ export async function createGame(opts) {
       s.breath = Math.min(1, s.breath + dt / 3.5);
       if (s.tired > 0) s.tired -= dt;
     }
-    const swayTarget = steady ? 0 : rifle.swayMul * (s.holding ? 0.12 : s.tired > 0 ? 2 : 1) * (s.scoped ? 1 : 0.25);
+    const swayTarget = steady ? 0 : rifle.swayMul * loadout.swayMul * (s.holding ? 0.12 : s.tired > 0 ? 2 : 1) * (s.scoped ? 1 : 0.25);
     s.swayMul += (swayTarget - s.swayMul) * Math.min(1, dt * 4);
     s.swayT += dt;
     const swayYaw = SWAY * s.swayMul * (Math.sin(s.swayT * 0.71) * 0.6 + Math.sin(s.swayT * 1.37 + 0.5) * 0.4);
@@ -674,36 +678,12 @@ export async function createGame(opts) {
     const holder = new THREE.Group();
     holder.position.set(0.17, -0.2, -0.36);
     holder.rotation.y = 0.03;
-    try {
-      // Placeholder AWM-style model (CC BY-NC-SA, test builds only: replace before release),
-      // falling back to the CC0 rifle. Used once, so the loaded scene is used directly
-      // (cloning a skinned model would leave it bound to the original skeleton).
-      let gltf;
-      try {
-        gltf = await loadGLTF('./models/rifle_awm_nc.glb');
-      } catch (err) {
-        gltf = await loadGLTF('./models/rifle.glb');
-      }
-      const model = gltf.scene;
-      model.traverse((o) => {
-        const m = /** @type {any} */ (o);
-        if (m.isMesh && m.material) {
-          m.material = m.material.clone();
-          m.material.metalness = 0.3;
-          m.material.roughness = 0.55;
-        }
-      });
-      const size = measure(model).getSize(new THREE.Vector3());
-      if (size.x >= size.z) model.rotation.y = Math.PI / 2;
-      const wrap = new THREE.Group();
-      wrap.add(model);
-      wrap.scale.setScalar(0.92 / Math.max(size.x, size.y, size.z));
-      const c = measure(wrap).getCenter(new THREE.Vector3());
-      wrap.position.sub(c);
-      wrap.position.z -= 0.3;
-      holder.add(wrap);
-    } catch (err) {
-      console.warn('Rifle model did not load.', err);
+    const rifleModel = await loadFittedRifle(0.95);
+    if (rifleModel) {
+      rifleModel.position.z = -0.3;
+      holder.add(rifleModel);
+    } else {
+      console.warn('Rifle model did not load.');
     }
     return holder;
   }
@@ -742,6 +722,12 @@ export async function createGame(opts) {
     /** Back to the menu with a fresh contract, without reloading. */
     async toMenu() {
       await resetContract();
+    },
+    /** @param {{ maxZoom: number, swayMul: number, breathTime: number, boltMul: number }} next */
+    setLoadout(next) {
+      loadout = next;
+      s.zoom = Math.min(s.zoom, loadout.maxZoom);
+      hud.zoomRange(loadout.maxZoom);
     },
     begin() {
       s = freshState();

@@ -4,11 +4,14 @@
 
 const KEY = 'skyline.progress.v1';
 
-/** @typedef {{ cash: number, xp: number, contracts: number, tutorialDone: boolean }} Progress */
+/**
+ * @typedef {{ cash: number, xp: number, contracts: number, tutorialDone: boolean, rifle: string,
+ *   upgrades: Record<string, Record<string, number>> }} Progress
+ */
 
 /** @returns {Progress} */
 export function loadProgress() {
-  const base = { cash: 0, xp: 0, contracts: 0, tutorialDone: false };
+  const base = { cash: 0, xp: 0, contracts: 0, tutorialDone: false, rifle: 'harrier', upgrades: {} };
   try {
     const raw = localStorage.getItem(KEY);
     return raw ? { ...base, ...JSON.parse(raw) } : base;
