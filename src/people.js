@@ -389,14 +389,22 @@ export class Person {
     bend('Bip01_Neck', right, 0.2 * buckle - 0.3 * topple);
   }
 
-  /** @param {number} dt */
-  update(dt) {
+  /**
+   * @param {number} dt
+   * @param {boolean} [onScreen] false while the person is outside the view: the skeleton is then
+   *   animated only a few times a second (nobody sees it), which saves a lot of phone power.
+   */
+  update(dt, onScreen) {
     // While falling the animation stays frozen at the hit; the fall poses the bones itself.
     if (this.fall) {
       this.updateFall(dt);
       return;
     }
-    this.mixer.update(dt);
+    this.animDebt = (this.animDebt || 0) + dt;
+    if (onScreen !== false || this.animDebt > 0.25) {
+      this.mixer.update(this.animDebt);
+      this.animDebt = 0;
+    }
     if (this.mode === 'dead' || this.mode === 'gone' || this.mode === 'idle') return;
     if (this.panicDelay > 0) {
       this.panicDelay -= dt;
@@ -540,6 +548,7 @@ export async function createCrowd(scene, setup, eye, seed) {
 
   let panicked = false;
   const all = [...civilians, target];
+  const sphere = new THREE.Sphere();
   return {
     civilians,
     target,
@@ -560,9 +569,23 @@ export async function createCrowd(scene, setup, eye, seed) {
       return target.alive && built.escaped();
     },
     /** @param {number} dt */
-    update(dt) {
+    /**
+     * @param {number} dt
+     * @param {THREE.Frustum} [frustum] the camera's view; people outside it are not drawn and
+     *   animate at a low rate (they still walk, so they are where they should be when seen)
+     */
+    update(dt, frustum) {
       if (built.update) built.update(dt);
-      for (const p of all) p.update(dt);
+      for (const p of all) {
+        let onScreen = true;
+        if (frustum && p.mode !== 'gone') {
+          sphere.center.set(p.x, p.root.position.y + p.h * 0.5, p.z);
+          sphere.radius = p.h * 0.8;
+          onScreen = frustum.intersectsSphere(sphere);
+          p.root.visible = onScreen;
+        }
+        p.update(dt, onScreen);
+      }
     },
     /**
      * Earliest person hit by the segment a-b.

@@ -6,6 +6,7 @@ import { createInput } from './input.js';
 import { createGame } from './game.js';
 import { renderPortrait } from './people.js';
 import { MISSIONS, missionById } from './missions.js';
+import { SCENES } from './scenes/index.js';
 import { loadSettings, saveSettings, loadBest, saveBest } from './settings.js';
 import { loadProgress, saveProgress, levelOf, rewardFor } from './progress.js';
 import { RIFLES, UPGRADES, upgradeLevel, nextPrice, buyUpgrade, loadoutFor } from './armory.js';
@@ -54,7 +55,13 @@ const armoryView = createArmoryView(/** @type {HTMLCanvasElement} */ ($('armory-
 
 /** A contract is open when the one before it has been completed at least once. */
 function isUnlocked(index) {
+  if (!isBuilt(index)) return false;
   return index === 0 || (loadBest(MISSIONS[index - 1].id) || 0) > 0;
+}
+
+/** Contracts whose scene is not in the game yet show as "Coming soon". */
+function isBuilt(index) {
+  return !!SCENES[MISSIONS[index].scene];
 }
 
 /** The contract the Play button starts: the first open one not yet completed, else the last open. */
@@ -98,7 +105,7 @@ function renderContracts() {
     } else {
       const lock = document.createElement('div');
       lock.className = 'lock';
-      lock.textContent = 'Locked: complete ' + MISSIONS[index - 1].title;
+      lock.textContent = isBuilt(index) ? 'Locked: complete ' + MISSIONS[index - 1].title : 'Coming soon';
       card.append(lock);
     }
     grid.appendChild(card);
@@ -402,6 +409,7 @@ const form = {
   sensitivity: /** @type {HTMLInputElement} */ ($('set-sensitivity')),
   sensitivityOut: $('set-sensitivity-out'),
   gyro: /** @type {HTMLSelectElement} */ ($('set-gyro')),
+  fps: /** @type {HTMLSelectElement} */ ($('set-fps')),
   markers: /** @type {HTMLInputElement} */ ($('set-markers')),
   bulletCam: /** @type {HTMLInputElement} */ ($('set-bulletcam')),
   sound: /** @type {HTMLInputElement} */ ($('set-sound')),
@@ -414,6 +422,7 @@ function openSettings(from) {
   form.sensitivity.value = String(settings.sensitivity);
   form.sensitivityOut.textContent = settings.sensitivity.toFixed(1) + '×';
   form.gyro.value = settings.gyro;
+  form.fps.value = String(settings.fps || 30);
   form.markers.checked = settings.markers;
   form.bulletCam.checked = settings.bulletCam;
   form.sound.checked = settings.sound;
@@ -431,6 +440,7 @@ $('btn-settings-done').addEventListener('click', async () => {
     quality: /** @type {any} */ (form.quality.value),
     sensitivity: parseFloat(form.sensitivity.value),
     gyro: /** @type {any} */ (form.gyro.value),
+    fps: parseInt(form.fps.value, 10) || 30,
     markers: form.markers.checked,
     bulletCam: form.bulletCam.checked,
     sound: form.sound.checked,

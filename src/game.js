@@ -21,7 +21,8 @@ const ZOOM_MAX = 12;
 const SWAY = 0.0016;
 const SUBSTEP = 1 / 1000;
 /** @type {Record<string, number>} */
-const QUALITY_RATIO = { low: 1, medium: 1.5, high: 2 };
+/** Render scale per quality. Phones have 3x screens; 1.25-1.75x looks sharp and runs cool. */
+const QUALITY_RATIO = { low: 1, medium: 1.25, high: 1.75 };
 
 function scopeFov(zoom) {
   return (2 * Math.atan(Math.tan((SCOPE_REF_FOV * Math.PI) / 360) / zoom) * 180) / Math.PI;
@@ -51,6 +52,8 @@ export async function createGame(opts) {
   renderer.toneMappingExposure = 1.0;
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  // Shadows are redrawn a dozen times a second, not every frame: people move slowly at sniper range.
+  renderer.shadowMap.autoUpdate = false;
   const scopeCtx = scopeCanvas.getContext('2d');
 
   const scene = new THREE.Scene();
@@ -164,7 +167,7 @@ export async function createGame(opts) {
   // ---------- sizing and quality ----------
 
   function quality() {
-    return settings.quality === 'auto' ? (perf.checked ? perf.auto : 'high') : settings.quality;
+    return settings.quality === 'auto' ? (perf.checked ? perf.auto : 'medium') : settings.quality;
   }
 
   function applyQuality() {
@@ -201,7 +204,8 @@ export async function createGame(opts) {
     if (perf.frames < 180) return;
     const avg = perf.total / perf.frames;
     perf.checked = true;
-    perf.auto = avg > 1 / 38 ? 'low' : avg > 1 / 50 ? 'medium' : 'high';
+    // Auto never picks High: on phones it costs heat for little visible gain.
+    perf.auto = avg > 1.3 / Math.max(30, settings.fps || 30) ? 'low' : 'medium';
     applyQuality();
   }
 
@@ -295,13 +299,13 @@ export async function createGame(opts) {
       s.scoped = false;
       s.fov = BASE_FOV;
       aimCamera(0, 0);
-      crowd.update(realDt);
+      crowd.update(realDt, viewFrustum());
       city.update(realDt);
       return;
     }
     if (s.mode === 'paused' || s.mode === 'over') {
       if (s.mode === 'over') {
-        crowd.update(realDt);
+        crowd.update(realDt, viewFrustum());
         city.update(realDt);
       }
       return;
@@ -396,7 +400,7 @@ export async function createGame(opts) {
 
   /** Everything that moves: people, cars, bullets, effects and panic. */
   function world(dt) {
-    crowd.update(dt);
+    crowd.update(dt, viewFrustum());
     city.update(dt);
     flyBullets(dt);
     puffs.update(dt);
@@ -677,13 +681,36 @@ export async function createGame(opts) {
     }
   }
 
+  const frustum = new THREE.Frustum();
+  const projView = new THREE.Matrix4();
+  /** The camera's current view volume, for skipping people outside it. */
+  function viewFrustum() {
+    camera.updateMatrixWorld();
+    projView.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
+    return frustum.setFromProjectionMatrix(projView);
+  }
+
+  /** Frame cap: the chosen rate while playing, fewer frames in menus and pauses. */
+  let shadowClock = 0;
+  function targetFps() {
+    if (s.mode === 'playing' || s.mode === 'bulletcam') return settings.fps || 30;
+    if (s.mode === 'paused') return 10;
+    return 24;
+  }
   function frame(now) {
     requestAnimationFrame(frame);
-    const dt = Math.min(0.05, Math.max(0, (now - last) / 1000));
+    // Skip this display refresh if the next frame is not due yet (with a little slack).
+    if (now - last < 1000 / targetFps() - 3) return;
+    const dt = Math.min(0.05 * Math.max(1, 60 / targetFps()), Math.max(0, (now - last) / 1000));
     last = now;
     try {
-      update(dt);
+      update(Math.min(dt, 0.1));
       measureFrames(dt);
+      shadowClock -= dt;
+      if (shadowClock <= 0) {
+        renderer.shadowMap.needsUpdate = true;
+        shadowClock = 1 / 12;
+      }
       render();
     } catch (err) {
       console.error(err);

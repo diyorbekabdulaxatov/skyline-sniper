@@ -65,6 +65,7 @@ export function createArmoryView(canvas) {
   function frame(now) {
     if (!running) return;
     requestAnimationFrame(frame);
+    if (now - last < 1000 / 30 - 3) return;
     const dt = Math.min(0.05, (now - last) / 1000 || 0);
     last = now;
     if (!renderer || !scene || !camera) return;
