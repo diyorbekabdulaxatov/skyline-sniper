@@ -158,9 +158,10 @@ export function createHud() {
       const target = targetId ? document.getElementById(targetId) : null;
       if (target) target.classList.add('pulse');
       const r = target ? target.getBoundingClientRect() : null;
+      // Hints about the view sit under the objective banner, clear of the target.
       const x = r ? r.left + r.width / 2 : window.innerWidth / 2;
-      const y = r ? r.top : window.innerHeight / 2 + 40;
-      node.dataset.side = r && x > window.innerWidth * 0.6 ? 'right' : r && x < window.innerWidth * 0.4 ? 'left' : 'center';
+      const y = r ? r.top : 56;
+      node.dataset.side = !r ? 'top' : x > window.innerWidth * 0.6 ? 'right' : x < window.innerWidth * 0.4 ? 'left' : 'center';
       node.style.left = x + 'px';
       node.style.top = y + 'px';
     },

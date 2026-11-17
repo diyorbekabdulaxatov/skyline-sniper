@@ -37,3 +37,11 @@ The sky, ground textures and street props are CC0 assets from Poly Haven, listed
 ### City textures (Poly Haven, CC0)
 
 The golden-hour sky is "Kloppenheim 06 (Pure Sky)". The brick and plaster walls use "Red Brick 03", "Brick Wall 006" and "Painted Plaster Wall". All shop signs, billboards and brand names in the city are invented for this game.
+
+## Placeholder (test builds only — REPLACE BEFORE RELEASE)
+
+| File | Model | Author | Licence | Source |
+|---|---|---|---|---|
+| `rifle_awm_nc.glb` | L11A3/AWP/AWM | Aronvctr | CC BY-NC-SA 4.0 (non-commercial) | https://sketchfab.com/3d-models/l11a3awpawm-976f084d925e4f6884a8c1d959c59d38 |
+
+Non-commercial licence: allowed in free test builds only. It must be replaced by a commercially licensed rifle before any release, ads or sales. `npm run check` lists it as a release blocker.

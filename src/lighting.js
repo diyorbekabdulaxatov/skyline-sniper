@@ -26,7 +26,7 @@ const PLAZA = new THREE.Vector3(0, 0, -70);
  * @returns {Promise<{ sun: THREE.DirectionalLight }>}
  */
 export async function setupLighting(scene, renderer, manifest) {
-  renderer.toneMappingExposure = 0.92;
+  renderer.toneMappingExposure = 1.12;
   scene.fog = new THREE.FogExp2('#c9b39e', 0.00085);
 
   // Direction toward the sun in the world, after the sky is turned.
@@ -50,9 +50,9 @@ export async function setupLighting(scene, renderer, manifest) {
     scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
   }
   pmrem.dispose();
-  scene.environmentIntensity = 0.9;
+  scene.environmentIntensity = 1.05;
 
-  scene.add(new THREE.HemisphereLight('#f3d6b8', '#4a3d36', 0.35));
+  scene.add(new THREE.HemisphereLight('#f3d6b8', '#5a4c42', 0.55));
 
   // Shadow light: same azimuth as the sky's sun, raised to a playable minimum elevation.
   const lightDir = sunDir.clone();

@@ -63,13 +63,14 @@ button { cursor: pointer; }
 .stat small { font-size: 12px; color: var(--muted); margin-left: 2px; }
 #btn-pause { width: 40px; height: 40px; border-radius: 10px; border: 1px solid var(--line); background: var(--glass); font-weight: 600; }
 #hud-intel {
-  position: absolute; top: calc(54px + var(--st)); left: calc(14px + var(--sl)); transform: translateY(-6px);
-  width: min(30vw, 330px); padding: 8px 12px; border-radius: 10px;
+  position: absolute; bottom: calc(64px + var(--sb)); left: 50%; transform: translate(-50%, 6px);
+  width: min(42vw, 440px); padding: 8px 12px; border-radius: 10px;
   background: var(--glass); border: 1px solid var(--line); backdrop-filter: blur(6px);
   font-size: 13px; line-height: 1.4; opacity: 0; transition: opacity .3s, transform .3s;
 }
 #hud-intel::before { content: "INTEL"; display: block; font: 700 10px/1.3 var(--f-display); letter-spacing: .2em; color: var(--accent); }
-#hud-intel.on { opacity: 1; transform: translateY(0); }
+#hud-intel.on { opacity: 1; transform: translate(-50%, 0); }
+#hud.scoped #hud-intel { bottom: calc(14px + var(--sb)); width: min(36vw, 380px); }
 #hud-flash {
   position: absolute; left: 50%; bottom: calc(22px + var(--sb)); transform: translateX(-50%);
   font: 700 18px/1 var(--f-display); letter-spacing: .1em; text-transform: uppercase; white-space: nowrap;
@@ -110,6 +111,8 @@ button { cursor: pointer; }
 #hud-hint[data-side="right"]::after { left: 85%; }
 #hud-hint[data-side="left"] { transform: translate(-15%, calc(-100% - 18px)); }
 #hud-hint[data-side="left"]::after { left: 15%; }
+#hud-hint[data-side="top"] { transform: translate(-50%, 0); }
+#hud-hint[data-side="top"]::after { display: none; }
 @keyframes bob { 50% { margin-top: -6px; } }
 .pad.pulse { box-shadow: 0 0 0 0 rgba(255,178,62,.8); animation: pulse 1.2s ease-out infinite; }
 @keyframes pulse { to { box-shadow: 0 0 0 18px rgba(255,178,62,0); } }
@@ -356,6 +359,8 @@ button { cursor: pointer; }
         <a href="https://github.com/microsoft/Microsoft-Rocketbox" target="_blank" rel="noopener">github.com/microsoft/Microsoft-Rocketbox</a></p>
       <h3>Models (CC BY 4.0)</h3>
       <p>Lowpoly Sedan &amp; Wagon by Han66st. Low Poly &amp; Game Ready Traffic Light by YourLocalJavaCarDealer. Tree low poly lowpoly by 00amza. All from Sketchfab, licensed under <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a>.</p>
+      <h3>Rifle (placeholder, CC BY-NC-SA 4.0)</h3>
+      <p>L11A3/AWP/AWM by Aronvctr, Sketchfab. Non-commercial licence, used in test builds only.</p>
       <h3>Environment (CC0)</h3>
       <p>Sky, textures and street props from <a href="https://polyhaven.com" target="_blank" rel="noopener">Poly Haven</a>. Rifle and fallback character by <a href="https://quaternius.com" target="_blank" rel="noopener">Quaternius</a>.</p>
       <h3>MIT License (Rocketbox)</h3>

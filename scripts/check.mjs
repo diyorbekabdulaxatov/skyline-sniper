@@ -25,6 +25,13 @@ for (const group of [assets.textures, assets.models]) {
   }
 }
 
+// Release blockers: placeholder assets whose licence forbids commercial use (files ending _nc).
+const blockers = readdirSync(join(root, 'public', 'models')).filter((n) => /_nc\.glb$/.test(n));
+if (blockers.length) {
+  console.warn('RELEASE BLOCKER: non-commercial placeholder models must be replaced before release: ' + blockers.join(', '));
+  if (process.env.RELEASE === '1') problems.push('Non-commercial placeholder models present: ' + blockers.join(', '));
+}
+
 if (problems.length) {
   console.error(problems.join('\n'));
   process.exit(1);

@@ -665,8 +665,16 @@ export async function createGame(opts) {
     holder.position.set(0.17, -0.2, -0.36);
     holder.rotation.y = 0.03;
     try {
-      const gltf = await loadGLTF('./models/rifle.glb');
-      const model = gltf.scene.clone(true);
+      // Placeholder AWM-style model (CC BY-NC-SA, test builds only: replace before release),
+      // falling back to the CC0 rifle. Used once, so the loaded scene is used directly
+      // (cloning a skinned model would leave it bound to the original skeleton).
+      let gltf;
+      try {
+        gltf = await loadGLTF('./models/rifle_awm_nc.glb');
+      } catch (err) {
+        gltf = await loadGLTF('./models/rifle.glb');
+      }
+      const model = gltf.scene;
       model.traverse((o) => {
         const m = /** @type {any} */ (o);
         if (m.isMesh && m.material) {

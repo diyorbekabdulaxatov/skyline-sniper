@@ -316,37 +316,58 @@ export class Person {
       axis: new THREE.Vector3(dz / d + side * (-dx / d), 0, -dx / d + side * (-dz / d)).normalize(),
       yaw: this.root.quaternion.clone(),
       bones,
-      spin: (Math.random() - 0.5) * 0.5
+      spin: (Math.random() - 0.5) * 0.5,
+      lead: Math.random() < 0.5 ? 'L' : 'R'
     };
   }
 
-  /** Procedural fall: gravity-like tip over the feet, knees buckling, a small bounce. */
+  /**
+   * Procedural death, in three overlapping phases:
+   *   0.00-0.30 s  knees give way: thighs swing forward, shins fold back, hips drop;
+   *   0.15-0.95 s  the body topples away from the shooter around the feet, gathering speed;
+   *   after        a small bounce as it lands, then it lies still.
+   * Bones are bent about axes taken from the body's own right-hand direction in world space,
+   * so the bends go the right way whatever each bone's local frame is.
+   */
   updateFall(dt) {
     const f = this.fall;
     f.t += dt;
-    const T = 0.9;
-    const k = Math.min(1, f.t / T);
-    const after = Math.max(0, f.t - T);
-    const bounce = after > 0 ? Math.sin(after * 11) * Math.exp(-after * 5) * 0.06 : 0;
-    const angle = Math.pow(k, 2.3) * (Math.PI / 2 - 0.06) - Math.abs(bounce);
+    const ease = (x) => x * x * (3 - 2 * x);
+    const buckle = ease(Math.min(1, f.t / 0.3));
+    const topple = Math.max(0, Math.min(1, (f.t - 0.15) / 0.8));
+    const after = Math.max(0, f.t - 0.95);
+    const bounce = after > 0 ? Math.sin(after * 12) * Math.exp(-after * 6) * 0.05 : 0;
+    const angle = Math.pow(topple, 2.2) * (Math.PI / 2 - 0.08) - Math.abs(bounce);
     const tip = new THREE.Quaternion().setFromAxisAngle(f.axis, angle);
-    const twist = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), f.spin * k);
+    const twist = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), f.spin * topple);
     this.root.quaternion.copy(tip).multiply(twist).multiply(f.yaw);
-    // Lift as the body tips so it ends lying on the ground, not half inside it.
-    this.root.position.y = LAYOUT.walkY + Math.sin(angle) * 0.12 * this.h;
-    // Bend joints on top of the frozen pose (the mixer rewrites bones every frame).
-    const buckle = Math.min(1, f.t / 0.35);
-    const bend = (name, axis, amount) => {
+    // Hips sink as the knees go, then the body lies on the ground rather than inside it.
+    const sink = 0.16 * this.h * buckle * (1 - topple);
+    this.root.position.y = LAYOUT.walkY - sink + Math.sin(angle) * 0.1 * this.h;
+
+    // The body's right-hand direction in the world, now (it turns as the body tips).
+    this.root.updateMatrixWorld(true);
+    const right = new THREE.Vector3(1, 0, 0).applyQuaternion(this.root.quaternion).normalize();
+    const parentQ = new THREE.Quaternion();
+    const axis = new THREE.Vector3();
+    // Rotates a bone by `amount` radians about the world axis `worldAxis`.
+    const bend = (name, worldAxis, amount) => {
       const b = f.bones[name];
-      if (!b) return;
-      const sign = Math.sign(b.quaternion.z) || -1;
-      b.quaternion.multiply(new THREE.Quaternion().setFromAxisAngle(axis, sign * amount));
+      if (!b || !b.parent || !amount) return;
+      b.parent.updateWorldMatrix(true, false);
+      b.parent.getWorldQuaternion(parentQ);
+      axis.copy(worldAxis).applyQuaternion(parentQ.invert());
+      b.quaternion.premultiply(new THREE.Quaternion().setFromAxisAngle(axis, amount));
     };
-    const Z = new THREE.Vector3(0, 0, 1);
-    bend('Bip01_L_Calf', Z, 0.9 * buckle);
-    bend('Bip01_R_Calf', Z, 0.75 * buckle);
-    bend('Bip01_Spine1', Z, 0.25 * buckle);
-    bend('Bip01_Head', Z, 0.35 * k);
+    // About `right`, positive turns a hanging limb backward and an upright spine forward.
+    for (const side of ['L', 'R']) {
+      const k = side === f.lead ? 1 : 0.8;
+      bend('Bip01_' + side + '_Thigh', right, -0.75 * buckle * k);
+      bend('Bip01_' + side + '_Calf', right, 1.35 * buckle * k);
+      bend('Bip01_' + side + '_UpperArm', right, -0.5 * topple);
+    }
+    bend('Bip01_Spine1', right, 0.22 * buckle);
+    bend('Bip01_Neck', right, 0.25 * buckle - 0.35 * topple);
   }
 
   /** @param {number} dt */

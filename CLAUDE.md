@@ -38,3 +38,7 @@ A realistic 3D city sniper game (Three.js), Android first through Capacitor. Mai
 ## Commands (CI)
 
 `npm run check`, `npm run typecheck`, `npm test`, `npm run assets`, `npm run build`, `npm run android`.
+
+## Release blockers
+
+- `public/models/rifle_awm_nc.glb` (L11A3/AWP/AWM by Aronvctr) is **CC BY-NC-SA**, allowed in free test builds only. The user will find or buy a commercially licensed rifle before release. Files ending `_nc.glb` are reported by `npm run check`, and `RELEASE=1 npm run check` fails while any remain. Never call the rifle "AWP" in the game's text.
