@@ -1,7 +1,8 @@
 name: Build
 
-# On every push: checks and tests, fetch and shrink the Poly Haven assets, build the game,
-# publish it to GitHub Pages (the phone preview) and build the Android test APK.
+# On every push: checks and tests, fetch and shrink the Poly Haven assets, build the game and
+# the Android test APK. Only main publishes the GitHub Pages preview and the android-latest release;
+# other branches keep their APK as a workflow artifact.
 #   Preview: https://<owner>.github.io/skyline-sniper/
 #   APK:     https://github.com/<owner>/skyline-sniper/releases/download/android-latest/skyline-sniper.apk
 
@@ -64,6 +65,7 @@ jobs:
 
   pages:
     name: Publish the phone preview
+    if: github.ref == 'refs/heads/main'
     needs: web
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -128,6 +130,7 @@ jobs:
           retention-days: 14
 
       - name: Publish the "android-latest" pre-release
+        if: github.ref == 'refs/heads/main'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |

@@ -2,10 +2,10 @@
 // The game: renderer and lighting, camera and scope, sway and breath, firing and bullet
 // flight, hits, the mission rules (target, civilians, escape) and the slow-motion bullet cam.
 import * as THREE from 'three';
-import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { KESTREL, zeroAngle, shotAt, step, segmentBox, SOUND_SPEED } from './ballistics.js';
 import { drawScope, clearScope } from './scope.js';
-import { loadManifest, loadSky, loadGLTF, measure } from './assets.js';
+import { loadManifest, loadGLTF, measure } from './assets.js';
+import { setupLighting } from './lighting.js';
 import { buildCity, LAYOUT } from './city.js';
 import { createCrowd } from './people.js';
 import { HARBOR } from './missions.js';
@@ -53,31 +53,9 @@ export async function createGame(opts) {
   const scopeCtx = scopeCanvas.getContext('2d');
 
   const scene = new THREE.Scene();
-  scene.fog = new THREE.FogExp2('#b9c4cf', 0.0011);
-
   progress('Loading the sky');
   const manifest = await loadManifest();
-  const pmrem = new THREE.PMREMGenerator(renderer);
-  const sky = await loadSky(manifest);
-  if (sky) {
-    scene.background = sky;
-    scene.environment = pmrem.fromEquirectangular(sky).texture;
-  } else {
-    scene.background = new THREE.Color('#a9c1d9');
-    scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
-  }
-  pmrem.dispose();
-
-  scene.add(new THREE.HemisphereLight('#d6e6f5', '#5d544b', 0.55));
-  const sun = new THREE.DirectionalLight('#fff1dc', 2.8);
-  sun.position.set(130, 210, 40);
-  sun.target.position.set(0, 0, -70);
-  sun.castShadow = true;
-  const sc = sun.shadow.camera;
-  sc.left = -120; sc.right = 120; sc.top = 120; sc.bottom = -120; sc.near = 20; sc.far = 520;
-  sun.shadow.bias = -0.0004;
-  sun.shadow.normalBias = 0.03;
-  scene.add(sun, sun.target);
+  const { sun } = await setupLighting(scene, renderer, manifest);
 
   progress('Building Harbor Plaza');
   const city = await buildCity(scene, manifest);
