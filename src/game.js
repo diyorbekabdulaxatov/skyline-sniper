@@ -612,9 +612,13 @@ export async function createGame(opts) {
       bulletMesh.visible = false;
       const f = c.focus;
       const t = crowd.target;
-      c.orbit = (c.orbit || 0) + realDt * 0.35;
-      camera.position.set(f.x + Math.sin(c.orbit + 0.6) * 3.2, f.y + 0.6, f.z + Math.cos(c.orbit + 0.6) * 3.2);
-      camera.lookAt(t.x, t.root.position.y + 1.0, t.z);
+      // Watch from the shooter's side, slowly swinging across it: the body falls away from the
+      // shot, so a camera on the far side would end up inside the falling body.
+      c.orbit = (c.orbit || 0) + realDt * 0.3;
+      const toShooter = Math.atan2(eye.x - t.x, eye.z - t.z);
+      const a = toShooter - 0.5 + c.orbit;
+      camera.position.set(t.x + Math.sin(a) * 4.2, t.root.position.y + 1.6, t.z + Math.cos(a) * 4.2);
+      camera.lookAt(t.x, t.root.position.y + 0.8, t.z);
       setFov(42);
       c.hold -= realDt;
       if (c.hold <= 0) {
