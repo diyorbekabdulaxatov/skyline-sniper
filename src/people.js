@@ -317,7 +317,9 @@ export class Person {
       yaw: this.root.quaternion.clone(),
       bones,
       spin: (Math.random() - 0.5) * 0.5,
-      lead: Math.random() < 0.5 ? 'L' : 'R'
+      lead: Math.random() < 0.5 ? 'L' : 'R',
+      // The pose at the moment of the hit; every frame starts again from it, so bends never pile up.
+      base: Object.fromEntries(Object.entries(bones).map(([n, b]) => [n, b.quaternion.clone()]))
     };
   }
 
@@ -332,6 +334,7 @@ export class Person {
   updateFall(dt) {
     const f = this.fall;
     f.t += dt;
+    for (const name of Object.keys(f.base)) f.bones[name].quaternion.copy(f.base[name]);
     const ease = (x) => x * x * (3 - 2 * x);
     const buckle = ease(Math.min(1, f.t / 0.3));
     const topple = Math.max(0, Math.min(1, (f.t - 0.15) / 0.8));
@@ -362,21 +365,22 @@ export class Person {
     // About `right`, positive turns a hanging limb backward and an upright spine forward.
     for (const side of ['L', 'R']) {
       const k = side === f.lead ? 1 : 0.8;
-      bend('Bip01_' + side + '_Thigh', right, -0.75 * buckle * k);
-      bend('Bip01_' + side + '_Calf', right, 1.35 * buckle * k);
-      bend('Bip01_' + side + '_UpperArm', right, -0.5 * topple);
+      bend('Bip01_' + side + '_Thigh', right, -0.4 * buckle * k);
+      bend('Bip01_' + side + '_Calf', right, 0.85 * buckle * k);
+      bend('Bip01_' + side + '_UpperArm', right, -0.45 * topple);
     }
-    bend('Bip01_Spine1', right, 0.22 * buckle);
-    bend('Bip01_Neck', right, 0.25 * buckle - 0.35 * topple);
+    bend('Bip01_Spine1', right, 0.18 * buckle);
+    bend('Bip01_Neck', right, 0.2 * buckle - 0.3 * topple);
   }
 
   /** @param {number} dt */
   update(dt) {
-    this.mixer.update(dt);
+    // While falling the animation stays frozen at the hit; the fall poses the bones itself.
     if (this.fall) {
       this.updateFall(dt);
       return;
     }
+    this.mixer.update(dt);
     if (this.mode === 'dead' || this.mode === 'gone' || this.mode === 'idle') return;
     if (this.panicDelay > 0) {
       this.panicDelay -= dt;
