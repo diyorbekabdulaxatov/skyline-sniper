@@ -69,11 +69,10 @@ export async function createGame(opts) {
   let crowd = await createCrowd(scene, SCENES[mission.scene].people, mission.vantage.eye, mission.seed);
   /** @type {any} The current contract's set dressing (props, lights), removed when the contract changes. */
   let dressing = { group: null, colliders: [], rangeMeshes: [] };
+  /** @type {any} Which scene's dressing is in the world now, so it can tidy up when replaced. */
+  let dressedScene = null;
   await dressFor(mission);
 
-  /** Which scene's dressing is in the world now, so it can tidy up when replaced. */
-  /** @type {any} */
-  let dressedScene = null;
   async function dressFor(m) {
     if (dressing.group) scene.remove(dressing.group);
     const prev = dressedScene && SCENES[dressedScene];
