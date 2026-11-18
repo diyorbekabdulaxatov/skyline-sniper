@@ -1,0 +1,65 @@
+{
+  "source": "Microsoft Rocketbox (MIT)",
+  "clips": {
+    "m_walk": {
+      "file": "m_walk.json",
+      "duration": 1.2,
+      "speed": 1.012
+    },
+    "m_run": {
+      "file": "m_run.json",
+      "duration": 0.733,
+      "speed": 2.88
+    },
+    "m_idle": {
+      "file": "m_idle.json",
+      "duration": 2.733,
+      "speed": 0
+    },
+    "m_idle2": {
+      "file": "m_idle2.json",
+      "duration": 4.633,
+      "speed": 0
+    },
+    "m_phone": {
+      "file": "m_phone.json",
+      "duration": 31.9,
+      "speed": 0
+    },
+    "m_talk": {
+      "file": "m_talk.json",
+      "duration": 35.567,
+      "speed": 0
+    },
+    "f_walk": {
+      "file": "f_walk.json",
+      "duration": 1.2,
+      "speed": 1.214
+    },
+    "f_run": {
+      "file": "f_run.json",
+      "duration": 0.767,
+      "speed": 2.765
+    },
+    "f_idle": {
+      "file": "f_idle.json",
+      "duration": 2.667,
+      "speed": 0
+    },
+    "f_idle2": {
+      "file": "f_idle2.json",
+      "duration": 4.467,
+      "speed": 0
+    },
+    "f_phone": {
+      "file": "f_phone.json",
+      "duration": 20.533,
+      "speed": 0
+    },
+    "f_talk": {
+      "file": "f_talk.json",
+      "duration": 27.333,
+      "speed": 0
+    }
+  }
+}

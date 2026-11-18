@@ -1,0 +1,501 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<title>Skyline Sniper</title>
+<meta name="theme-color" content="#0e141b">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&family=Rajdhani:wght@600;700&display=swap">
+<style>
+/* Layout: full-bleed 3D view; HUD pinned to the safe-area edges; menus are glass panels over the live city. */
+:root {
+  color-scheme: dark;
+  --ink: #0e141b;
+  --glass: rgba(12, 18, 25, 0.66);
+  --glass-strong: rgba(12, 18, 25, 0.88);
+  --line: rgba(255, 255, 255, 0.16);
+  --text: #f3f5f7;
+  --muted: #a3b2c0;
+  --accent: #ffb23e;
+  --danger: #ef4b4b;
+  --ok: #3ecf8e;
+  --f-display: "Rajdhani", "Barlow Condensed", "Arial Narrow", sans-serif;
+  --f-body: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --st: env(safe-area-inset-top, 0px);
+  --sr: env(safe-area-inset-right, 0px);
+  --sb: env(safe-area-inset-bottom, 0px);
+  --sl: env(safe-area-inset-left, 0px);
+}
+html, body { height: 100%; margin: 0; background: var(--ink); color: var(--text); overflow: hidden; overscroll-behavior: none; }
+body { font-family: var(--f-body); font-size: 14px; touch-action: none; user-select: none; -webkit-user-select: none; -webkit-tap-highlight-color: transparent; }
+[hidden] { display: none !important; }
+button, select, input { font: inherit; color: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+#view, #scope { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
+#scope { pointer-events: none; }
+
+/* ---------- HUD ---------- */
+#hud { position: fixed; inset: 0; pointer-events: none; }
+#hud button, #hud input { pointer-events: auto; }
+#hud.cinematic > :not(#hud-flash) { opacity: 0; pointer-events: none; }
+.hud-top {
+  position: absolute; top: calc(8px + var(--st)); left: calc(14px + var(--sl)); right: calc(14px + var(--sr));
+  display: flex; justify-content: space-between; align-items: flex-start; gap: 12px;
+}
+.objective {
+  position: absolute; top: calc(6px + var(--st)); left: 50%; transform: translateX(-50%);
+  display: flex; align-items: center; gap: 12px; padding: 6px 16px; border-radius: 10px;
+  background: var(--glass); border: 1px solid var(--line); backdrop-filter: blur(6px); white-space: nowrap;
+}
+.objective b { font: 700 10px/1 var(--f-display); letter-spacing: .18em; text-transform: uppercase; color: var(--accent); }
+.objective span { font: 700 18px/1.1 var(--f-display); letter-spacing: .04em; text-transform: uppercase; }
+#hud-timer { font: 700 18px/1 var(--f-display); font-variant-numeric: tabular-nums; color: var(--muted); }
+#hud-timer:empty { display: none; }
+#hud-timer.urgent { color: var(--danger); }
+.readouts { display: flex; gap: 14px; align-items: flex-start; }
+.stat { display: flex; flex-direction: column; gap: 2px; text-shadow: 0 1px 3px rgba(0,0,0,.7); }
+.stat b { font: 600 10px/1 var(--f-body); letter-spacing: .14em; text-transform: uppercase; color: var(--muted); }
+.stat span { font: 700 20px/1 var(--f-display); font-variant-numeric: tabular-nums; }
+.stat small { font-size: 12px; color: var(--muted); margin-left: 2px; }
+#btn-pause { width: 40px; height: 40px; border-radius: 10px; border: 1px solid var(--line); background: var(--glass); font-weight: 600; }
+#hud-intel {
+  position: absolute; bottom: calc(64px + var(--sb)); left: 50%; transform: translate(-50%, 6px);
+  width: min(42vw, 440px); padding: 8px 12px; border-radius: 10px;
+  background: var(--glass); border: 1px solid var(--line); backdrop-filter: blur(6px);
+  font-size: 13px; line-height: 1.4; opacity: 0; transition: opacity .3s, transform .3s;
+}
+#hud-intel::before { content: "INTEL"; display: block; font: 700 10px/1.3 var(--f-display); letter-spacing: .2em; color: var(--accent); }
+#hud-intel.on { opacity: 1; transform: translate(-50%, 0); }
+#hud.scoped #hud-intel { bottom: calc(14px + var(--sb)); width: min(36vw, 380px); }
+#hud-flash {
+  position: absolute; left: 50%; bottom: calc(22px + var(--sb)); transform: translateX(-50%);
+  font: 700 18px/1 var(--f-display); letter-spacing: .1em; text-transform: uppercase; white-space: nowrap;
+  padding: 7px 14px; border-radius: 8px; background: var(--glass); opacity: 0; transition: opacity .25s;
+}
+#hud-flash.on { opacity: 1; }
+#hud-flash[data-tone="good"] { color: var(--accent); }
+#hud-flash[data-tone="bad"] { background: rgba(190, 40, 40, .9); color: #fff; }
+#hud-flash[data-tone="plain"] { color: var(--muted); }
+#crosshair { position: absolute; left: 50%; top: 50%; width: 22px; height: 22px; margin: -11px 0 0 -11px; }
+#crosshair::before, #crosshair::after { content: ""; position: absolute; background: rgba(255,255,255,.85); box-shadow: 0 0 2px rgba(0,0,0,.8); }
+#crosshair::before { left: 10px; top: 0; width: 2px; height: 22px; }
+#crosshair::after { top: 10px; left: 0; height: 2px; width: 22px; }
+/* JS moves the marker's origin to the point above the target's head; the red tag and its pointer sit above it. */
+#target-marker {
+  position: absolute; left: 0; top: 0; width: 84px; margin: -54px 0 0 -42px; pointer-events: none;
+  display: grid; justify-items: center; gap: 2px;
+}
+#target-marker::before {
+  content: "TARGET"; display: block; padding: 4px 10px 3px; border-radius: 6px; background: var(--danger);
+  font: 700 15px/1 var(--f-display); letter-spacing: .12em; color: #fff; box-shadow: 0 2px 6px rgba(0,0,0,.45);
+}
+#target-marker::after {
+  content: attr(data-dist); font: 700 12px/1 var(--f-display); color: #fff; text-shadow: 0 1px 2px rgba(0,0,0,.9);
+  padding-top: 12px; background: linear-gradient(var(--danger), var(--danger)) center 0 / 0 0 no-repeat;
+  position: relative;
+}
+#target-marker i { display: none; }
+#hud.on-target #crosshair::before, #hud.on-target #crosshair::after { background: #46dc78; }
+#hud-hint {
+  position: absolute; z-index: 5; transform: translate(-50%, calc(-100% - 18px)); width: max-content; max-width: 240px;
+  padding: 9px 13px; border-radius: 10px; background: #fff; color: #111;
+  font: 700 15px/1.25 var(--f-display); letter-spacing: .02em; text-align: center; pointer-events: none;
+  box-shadow: 0 6px 18px rgba(0,0,0,.4); animation: bob 1.2s ease-in-out infinite;
+}
+#hud-hint::after { content: ""; position: absolute; left: 50%; bottom: -9px; margin-left: -9px; border: 9px solid transparent; border-bottom: 0; border-top-color: #fff; }
+#hud-hint[data-side="right"] { transform: translate(-85%, calc(-100% - 18px)); }
+#hud-hint[data-side="right"]::after { left: 85%; }
+#hud-hint[data-side="left"] { transform: translate(-15%, calc(-100% - 18px)); }
+#hud-hint[data-side="left"]::after { left: 15%; }
+#hud-hint[data-side="top"] { transform: translate(-50%, 0); }
+#hud-hint[data-side="top"]::after { display: none; }
+@keyframes bob { 50% { margin-top: -6px; } }
+.pad.pulse { box-shadow: 0 0 0 0 rgba(255,178,62,.8); animation: pulse 1.2s ease-out infinite; }
+@keyframes pulse { to { box-shadow: 0 0 0 18px rgba(255,178,62,0); } }
+
+
+.pad {
+  position: absolute; display: grid; place-items: center; border-radius: 50%;
+  border: 1.5px solid rgba(255,255,255,.4); background: var(--glass); color: var(--text);
+  font: 700 13px/1 var(--f-display); letter-spacing: .12em; text-transform: uppercase;
+  touch-action: none; transition: transform .08s, background .15s, opacity .15s;
+}
+.pad:active { transform: scale(.94); }
+#btn-fire { right: calc(20px + var(--sr)); bottom: calc(20px + var(--sb)); width: 92px; height: 92px; background: rgba(214, 52, 52, .88); border-color: #ff7a7a; font-size: 17px; }
+#btn-fire.cycling { opacity: .45; }
+#btn-scope { right: calc(126px + var(--sr)); bottom: calc(28px + var(--sb)); width: 66px; height: 66px; }
+#btn-scope.active { background: rgba(255, 178, 62, .3); border-color: var(--accent); }
+#btn-reload { right: calc(32px + var(--sr)); bottom: calc(126px + var(--sb)); width: 54px; height: 54px; font-size: 11px; }
+#btn-breath {
+  left: calc(20px + var(--sl)); bottom: calc(20px + var(--sb)); width: 80px; height: 80px; border: none;
+  background: conic-gradient(rgba(255,178,62,.85) calc(var(--p, 1) * 360deg), rgba(255,255,255,.14) 0);
+  font-size: 12px; line-height: 1.1; text-align: center;
+}
+#btn-breath::after { content: ""; position: absolute; inset: 4px; border-radius: 50%; background: var(--glass-strong); }
+#btn-breath span { position: relative; z-index: 1; }
+#btn-breath[data-state="holding"]::after { background: rgba(255,178,62,.3); }
+#btn-breath[data-state="tired"] { background: conic-gradient(rgba(239,75,75,.85) calc(var(--p, 1) * 360deg), rgba(255,255,255,.14) 0); }
+#hud:not(.scoped) #btn-breath { opacity: .35; }
+.ammo { position: absolute; right: calc(126px + var(--sr)); bottom: calc(104px + var(--sb)); width: 66px; text-align: center; text-shadow: 0 1px 3px rgba(0,0,0,.8); }
+.ammo span { display: block; font: 700 20px/1 var(--f-display); font-variant-numeric: tabular-nums; }
+.ammo b { font: 600 10px/1.4 var(--f-body); letter-spacing: .14em; color: var(--muted); }
+#zoom-wrap { position: absolute; left: calc(38px + var(--sl)); bottom: calc(120px + var(--sb)); width: 46px; height: 150px; }
+#zoom-label { position: absolute; top: 66px; left: 40px; font: 700 15px/1 var(--f-display); color: var(--accent); font-variant-numeric: tabular-nums; }
+#zoom { position: absolute; width: 140px; left: -47px; top: 65px; transform: rotate(-90deg); accent-color: var(--accent); touch-action: none; }
+
+/* ---------- screens ---------- */
+.screen {
+  position: fixed; inset: 0; display: grid; place-items: center; overflow-y: auto; touch-action: pan-y;
+  padding: max(12px, var(--st)) max(16px, var(--sr)) max(12px, var(--sb)) max(16px, var(--sl));
+}
+#screen-loading { background: radial-gradient(ellipse at 50% 40%, #1b2735, var(--ink)); z-index: 20; }
+.loading { text-align: center; display: grid; gap: 14px; justify-items: center; }
+.spinner { width: 34px; height: 34px; border-radius: 50%; border: 3px solid rgba(255,255,255,.15); border-top-color: var(--accent); animation: spin 1s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+#loading-text { color: var(--muted); }
+.brand { font: 700 clamp(34px, 9vh, 72px)/0.9 var(--f-display); letter-spacing: .06em; text-transform: uppercase; margin: 0; }
+.brand em { font-style: normal; color: var(--accent); }
+
+#screen-menu {
+  background: linear-gradient(90deg, rgba(8,12,17,.82) 0%, rgba(8,12,17,.45) 55%, rgba(8,12,17,.2) 100%);
+  grid-template-columns: minmax(0, 1fr) minmax(0, 470px); gap: clamp(16px, 4vw, 56px); justify-content: center;
+}
+.title-block { justify-self: end; max-width: 420px; }
+.tagline { color: var(--muted); margin: 10px 0 0; line-height: 1.5; }
+.hint { color: var(--muted); font-size: 12px; margin-top: 14px; line-height: 1.6; opacity: .8; }
+.card {
+  background: var(--glass-strong); border: 1px solid var(--line); border-radius: 16px; padding: 16px;
+  backdrop-filter: blur(8px); width: 100%; box-sizing: border-box; max-width: 470px;
+  display: grid; grid-template-columns: 112px minmax(0, 1fr); gap: 4px 16px;
+}
+.card .eyebrow { grid-column: 1 / -1; font: 700 11px/1 var(--f-display); letter-spacing: .2em; text-transform: uppercase; color: var(--accent); }
+.card h2 { grid-column: 1 / -1; font: 700 30px/1 var(--f-display); margin: 4px 0 0; letter-spacing: .02em; }
+.card .district { grid-column: 1 / -1; color: var(--muted); font-size: 12px; margin: 2px 0 10px; }
+.photo { width: 112px; height: 140px; border-radius: 10px; overflow: hidden; border: 1px solid var(--line); background: #d9dde2; position: relative; }
+.photo canvas { width: 100%; height: 100%; display: block; }
+.photo::after { content: "TARGET"; position: absolute; left: 6px; bottom: 6px; font: 700 10px/1 var(--f-display); letter-spacing: .16em; background: var(--danger); color: #fff; padding: 3px 5px; border-radius: 3px; }
+.dossier h3 { font: 700 20px/1 var(--f-display); margin: 0 0 4px; }
+.dossier p { margin: 0 0 8px; color: var(--muted); font-size: 12.5px; line-height: 1.45; }
+.dossier ul { margin: 0; padding-left: 16px; font-size: 12.5px; line-height: 1.6; }
+.dossier ul li::marker { content: "\2606  "; color: var(--accent); }
+.card .briefing { grid-column: 1 / -1; color: var(--text); font-size: 12.5px; line-height: 1.5; margin: 10px 0 8px; opacity: .9; }
+.card .best { grid-column: 1 / -1; color: var(--accent); font-size: 12px; margin: 0 0 10px; }
+.actions { grid-column: 1 / -1; display: flex; gap: 10px; flex-wrap: wrap; }
+.btn { border: none; padding: 12px 20px; border-radius: 10px; font: 700 15px/1 var(--f-display); letter-spacing: .14em; text-transform: uppercase; }
+.btn-primary { background: var(--accent); color: #1a1206; }
+.btn-primary:hover { filter: brightness(1.08); }
+.btn-quiet { background: rgba(255,255,255,.08); border: 1px solid var(--line); }
+
+.panel {
+  background: var(--glass-strong); border: 1px solid var(--line); border-radius: 16px; padding: 18px 22px;
+  width: min(440px, 100%); box-sizing: border-box; display: flex; flex-direction: column; gap: 12px; backdrop-filter: blur(8px);
+}
+.panel h2 { font: 700 28px/1 var(--f-display); margin: 0; letter-spacing: .04em; text-transform: uppercase; }
+.panel .actions { flex-direction: column; }
+.panel .actions .btn { width: 100%; }
+#screen-pause, #screen-settings, #screen-results { background: rgba(6, 10, 14, .55); }
+.field { display: grid; grid-template-columns: 1fr auto; gap: 6px 12px; align-items: center; }
+.field label { font-weight: 600; font-size: 13px; color: var(--muted); }
+.field select { background: #18222d; border: 1px solid var(--line); padding: 6px 8px; border-radius: 8px; min-width: 150px; }
+.field input[type="range"] { grid-column: 1 / -1; accent-color: var(--accent); touch-action: pan-x; }
+.field output { font-variant-numeric: tabular-nums; }
+.field input[type="checkbox"] { width: 20px; height: 20px; accent-color: var(--accent); }
+.settings-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 20px; }
+.wallet {
+  position: fixed; top: calc(10px + var(--st)); right: calc(14px + var(--sr)); display: flex; gap: 10px; z-index: 2;
+}
+.chip { display: flex; align-items: center; gap: 8px; padding: 6px 12px; border-radius: 999px; background: var(--glass-strong); border: 1px solid var(--line); font: 700 16px/1 var(--f-display); font-variant-numeric: tabular-nums; }
+.chip b { color: var(--accent); font-size: 12px; letter-spacing: .14em; }
+.level-bar { width: 70px; height: 5px; border-radius: 3px; background: rgba(255,255,255,.15); overflow: hidden; }
+.level-bar i { display: block; height: 100%; width: 0; background: var(--accent); }
+.rewards { display: grid; gap: 4px; margin: 0; padding: 0; list-style: none; font-size: 13px; }
+.rewards li { display: flex; justify-content: space-between; color: var(--muted); }
+.rewards li span:last-child { color: var(--text); font-variant-numeric: tabular-nums; }
+.rewards li.total { border-top: 1px solid var(--line); padding-top: 6px; margin-top: 2px; color: var(--accent); font: 700 17px/1 var(--f-display); letter-spacing: .06em; }
+.rewards li.total span:last-child { color: var(--accent); }
+.credits { max-height: 52vh; overflow-y: auto; font-size: 12px; line-height: 1.5; color: var(--muted); touch-action: pan-y; padding-right: 6px; }
+.credits h3 { font: 700 15px/1.2 var(--f-display); color: var(--text); letter-spacing: .06em; text-transform: uppercase; margin: 10px 0 4px; }
+.credits p { margin: 0 0 6px; }
+.credits a { color: var(--accent); }
+.results-stars { font-size: 34px; letter-spacing: .12em; line-height: 1; }
+/* Main menu navigation, Contracts and Armory */
+.menu-nav { display: grid; gap: 8px; margin-top: 16px; max-width: 280px; }
+.nav-btn {
+  display: grid; text-align: left; gap: 2px; padding: 10px 14px; border-radius: 12px;
+  background: var(--glass-strong); border: 1px solid var(--line); backdrop-filter: blur(6px);
+}
+.nav-btn b { font: 700 17px/1 var(--f-display); letter-spacing: .1em; text-transform: uppercase; }
+.nav-btn span { font-size: 11.5px; color: var(--muted); }
+.nav-btn:hover { border-color: var(--accent); }
+.btn-play { font-size: 20px; padding: 14px 34px; letter-spacing: .2em; }
+.panel.wide { width: min(800px, 100%); }
+.panel-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.actions.row { flex-direction: row; justify-content: flex-end; }
+.contract-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.contract-card { display: flex; flex-direction: column; gap: 6px; padding: 12px; border-radius: 12px; background: rgba(255,255,255,.05); border: 1px solid var(--line); min-height: 150px; }
+.contract-card .num { font: 700 11px/1 var(--f-display); letter-spacing: .2em; color: var(--accent); }
+.contract-card h3 { font: 700 20px/1.05 var(--f-display); margin: 0; letter-spacing: .03em; }
+.contract-card .where { font-size: 11.5px; color: var(--muted); }
+.contract-card .stars { color: var(--accent); font-size: 18px; letter-spacing: .1em; margin-top: auto; }
+.contract-card .lock { margin-top: auto; font-size: 12px; color: var(--muted); display: flex; gap: 6px; align-items: center; }
+.contract-card.locked { opacity: .6; }
+.contract-card .btn { padding: 9px 12px; font-size: 14px; }
+.armory { flex-direction: row; gap: 22px; }
+.armory-left, .armory-right { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; gap: 10px; }
+#armory-rifle { width: 100%; height: 150px; display: block; touch-action: none; cursor: grab; border-radius: 12px; background: radial-gradient(ellipse at center, rgba(255,255,255,.08), transparent 70%); }
+.rifle-tabs { display: flex; gap: 8px; }
+.rifle-tab { flex: 1; padding: 8px 10px; border-radius: 10px; border: 1px solid var(--line); background: rgba(255,255,255,.05); text-align: left; display: grid; gap: 2px; }
+.rifle-tab b { font: 700 15px/1 var(--f-display); letter-spacing: .06em; }
+.rifle-tab span { font-size: 11px; color: var(--muted); }
+.rifle-tab[aria-pressed="true"] { border-color: var(--accent); background: rgba(255,178,62,.12); }
+.rifle-tab:disabled { opacity: .55; cursor: default; }
+.rifle-desc { margin: 0; font-size: 12px; color: var(--muted); line-height: 1.45; }
+.upgrades { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.upgrade { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 10px; align-items: center; padding: 8px 10px; border-radius: 10px; background: rgba(255,255,255,.05); }
+.upgrade .name { font: 700 15px/1 var(--f-display); letter-spacing: .08em; text-transform: uppercase; }
+.upgrade .value { font-size: 11.5px; color: var(--muted); }
+.upgrade .value em { font-style: normal; color: var(--ok); }
+.pips { display: flex; gap: 4px; }
+.pips i { width: 16px; height: 5px; border-radius: 2px; background: rgba(255,255,255,.15); }
+.pips i.on { background: var(--accent); }
+.upgrade .btn { grid-row: 1 / span 3; grid-column: 2; padding: 9px 12px; font-size: 13px; min-width: 96px; }
+.upgrade .btn:disabled { opacity: .45; cursor: default; }
+@media (max-height: 430px) {
+  .menu-nav { margin-top: 10px; gap: 6px; }
+  .nav-btn { padding: 7px 12px; }
+  #armory-rifle { height: 110px; }
+  .contract-card { min-height: 120px; }
+  .upgrades { gap: 6px; }
+  .upgrade { padding: 6px 10px; }
+}
+@media (max-width: 640px) {
+  .contract-grid { grid-template-columns: minmax(0, 1fr); }
+  .armory { flex-direction: column; }
+}
+/* Results fit a landscape phone without scrolling: story and stats left, payout and buttons right. */
+#screen-results .panel { width: min(780px, 100%); flex-direction: row; gap: 28px; align-items: stretch; }
+.results-main, .results-side { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; gap: 10px; }
+.results-side { justify-content: space-between; }
+#screen-results .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+#screen-results .actions { flex-direction: column; }
+@media (max-height: 430px) {
+  #screen-results .panel { padding: 14px 18px; gap: 8px 24px; }
+  #screen-results .panel > h2 { font-size: 24px; }
+  .results-stars { font-size: 26px; }
+  #screen-results .stats span { font-size: 19px; }
+  #screen-results .btn { padding: 10px 16px; }
+}
+@media (max-width: 560px) {
+  #screen-results .panel { flex-direction: column; }
+}
+.results-stars[data-tone="good"] { color: var(--accent); }
+.results-stars[data-tone="bad"] { color: var(--muted); }
+.stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+.stats div { display: flex; flex-direction: column; gap: 3px; }
+.stats b { font: 600 10px/1 var(--f-body); letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+.stats span { font: 700 22px/1 var(--f-display); font-variant-numeric: tabular-nums; }
+
+#rotate { display: none; position: fixed; inset: 0; z-index: 50; background: var(--ink); place-items: center; text-align: center; padding: 24px; }
+#rotate p { color: var(--muted); max-width: 260px; margin: 12px auto 0; line-height: 1.5; }
+#rotate strong { font: 700 28px/1 var(--f-display); letter-spacing: .06em; text-transform: uppercase; }
+@media (orientation: portrait) and (max-width: 820px) and (pointer: coarse) { #rotate { display: grid; } }
+@media (max-height: 430px) {
+  .card { padding: 12px 14px; grid-template-columns: 92px minmax(0, 1fr); }
+  .photo { width: 92px; height: 116px; }
+  .card .briefing { display: none; }
+  .hint { display: none; }
+  .settings-grid { gap: 8px 16px; }
+}
+@media (max-width: 640px) and (orientation: portrait) { #screen-menu { grid-template-columns: minmax(0, 1fr); } .title-block { justify-self: start; } }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+</style>
+  <script type="module" crossorigin src="./assets/index--kcY52cF.js"></script>
+</head>
+<body>
+<canvas id="view" aria-label="City seen from a rooftop"></canvas>
+<canvas id="scope" aria-hidden="true"></canvas>
+
+<div id="hud" hidden>
+  <div class="objective"><b>Objective</b><span id="hud-objective">Eliminate the target</span><span id="hud-timer"></span></div>
+  <div class="hud-top">
+    <div></div>
+    <div class="readouts">
+      <div class="stat"><b>Wind</b><span><span id="hud-wind-arrow">&rarr;</span> <span id="hud-wind">0.0 m/s</span></span></div>
+      <div class="stat"><b>Range</b><span><span id="hud-range">---</span><small>m</small></span></div>
+      <button id="btn-pause" type="button" aria-label="Pause">II</button>
+    </div>
+  </div>
+  <div id="hud-intel" role="status" aria-live="polite"></div>
+  <div id="hud-flash" role="status" aria-live="polite"></div>
+  <div id="crosshair"></div>
+  <div id="target-marker" hidden></div>
+  <div id="hud-hint" hidden></div>
+  <div id="zoom-wrap" hidden>
+    <div id="zoom-label">6.0&times;</div>
+    <input id="zoom" type="range" min="2" max="16" step="0.1" value="6" aria-label="Scope magnification">
+  </div>
+  <button id="btn-breath" class="pad" type="button" aria-label="Hold breath"><span>Hold<br>breath</span></button>
+  <div class="ammo"><span id="hud-ammo">5 / 5</span><b id="hud-status">READY</b></div>
+  <button id="btn-scope" class="pad" type="button">Scope</button>
+  <button id="btn-reload" class="pad" type="button">Reload</button>
+  <button id="btn-fire" class="pad" type="button">Fire</button>
+</div>
+
+<section id="screen-loading" class="screen">
+  <div class="loading">
+    <h1 class="brand">Skyline <em>Sniper</em></h1>
+    <div class="spinner"></div>
+    <div id="loading-text">Loading</div>
+  </div>
+</section>
+
+<section id="screen-menu" class="screen" hidden>
+  <div class="wallet">
+    <div class="chip"><b>LVL</b><span id="wallet-level">1</span><div class="level-bar"><i id="wallet-xp"></i></div></div>
+    <div class="chip"><b>$</b><span id="wallet-cash">0</span></div>
+  </div>
+  <div class="title-block">
+    <h1 class="brand">Skyline<br><em>Sniper</em></h1>
+    <p class="tagline">Find the target. Read the wind. Take the shot.</p>
+    <nav class="menu-nav" aria-label="Main menu">
+      <button id="btn-nav-contracts" class="nav-btn" type="button"><b>Contracts</b><span id="nav-contracts-sub">1 of 3 open</span></button>
+      <button id="btn-nav-armory" class="nav-btn" type="button"><b>Armory</b><span id="nav-armory-sub">Upgrade your rifle</span></button>
+      <button id="btn-menu-settings" class="nav-btn" type="button"><b>Settings</b><span>Graphics, aim, sound</span></button>
+    </nav>
+  </div>
+  <div class="card">
+    <div class="eyebrow" id="contract-number">Contract 01</div>
+    <h2 id="contract-title">Harbor Plaza</h2>
+    <div class="district" id="contract-district"></div>
+    <div class="photo"><canvas id="target-photo" width="224" height="280"></canvas></div>
+    <div class="dossier">
+      <h3 id="target-name"></h3>
+      <p id="target-description"></p>
+      <ul id="contract-stars"></ul>
+    </div>
+    <p class="briefing" id="contract-briefing"></p>
+    <p class="best" id="contract-best"></p>
+    <div class="actions">
+      <button id="btn-start" class="btn btn-primary btn-play" type="button">Play</button>
+    </div>
+  </div>
+</section>
+
+<section id="screen-contracts" class="screen" hidden>
+  <div class="panel wide">
+    <div class="panel-head"><h2>Contracts</h2><div class="chip"><b>$</b><span class="cash-now">0</span></div></div>
+    <div class="contract-grid" id="contract-grid"></div>
+    <div class="actions row"><button id="btn-contracts-back" class="btn btn-quiet" type="button">Back</button></div>
+  </div>
+</section>
+
+<section id="screen-armory" class="screen" hidden>
+  <div class="panel wide armory">
+    <div class="armory-left">
+      <div class="panel-head"><h2>Armory</h2><div class="chip"><b>$</b><span class="cash-now">0</span></div></div>
+      <canvas id="armory-rifle" aria-label="The equipped rifle, turning slowly. Drag to turn it."></canvas>
+      <div class="rifle-tabs" id="rifle-tabs"></div>
+      <p class="rifle-desc" id="rifle-desc"></p>
+    </div>
+    <div class="armory-right">
+      <ul class="upgrades" id="upgrade-list"></ul>
+      <div class="actions row"><button id="btn-armory-back" class="btn btn-quiet" type="button">Back</button></div>
+    </div>
+  </div>
+</section>
+
+<section id="screen-pause" class="screen" hidden>
+  <div class="panel">
+    <h2>Paused</h2>
+    <div class="actions">
+      <button id="btn-resume" class="btn btn-primary" type="button">Resume</button>
+      <button id="btn-restart" class="btn btn-quiet" type="button">Restart contract</button>
+      <button id="btn-pause-settings" class="btn btn-quiet" type="button">Settings</button>
+      <button id="btn-quit" class="btn btn-quiet" type="button">Quit to menu</button>
+    </div>
+  </div>
+</section>
+
+<section id="screen-settings" class="screen" hidden>
+  <div class="panel">
+    <h2>Settings</h2>
+    <div class="settings-grid">
+      <div class="field">
+        <label for="set-quality">Graphics</label>
+        <select id="set-quality"><option value="auto">Auto</option><option value="high">High</option><option value="medium">Medium</option><option value="low">Low</option></select>
+      </div>
+      <div class="field">
+        <label for="set-fps">Frame rate</label>
+        <select id="set-fps"><option value="30">30 FPS (cooler, saves battery)</option><option value="60">60 FPS (smoother, warmer)</option></select>
+      </div>
+      <div class="field">
+        <label for="set-gyro">Gyro aiming</label>
+        <select id="set-gyro"><option value="off">Off</option><option value="scope">While scoped</option><option value="always">Always</option></select>
+      </div>
+      <div class="field" style="grid-column: 1 / -1">
+        <label for="set-sensitivity">Aim sensitivity</label>
+        <output id="set-sensitivity-out" for="set-sensitivity">1.0&times;</output>
+        <input id="set-sensitivity" type="range" min="0.3" max="2.5" step="0.1" value="1">
+      </div>
+      <div class="field"><label for="set-markers">Target marker</label><input id="set-markers" type="checkbox" checked></div>
+      <div class="field"><label for="set-bulletcam">Bullet cam</label><input id="set-bulletcam" type="checkbox" checked></div>
+      <div class="field"><label for="set-sound">Sound</label><input id="set-sound" type="checkbox" checked></div>
+      <div class="field"><label for="set-trail">Bullet trail</label><input id="set-trail" type="checkbox" checked></div>
+    </div>
+    <div class="actions"><button id="btn-settings-done" class="btn btn-primary" type="button">Done</button><button id="btn-credits" class="btn btn-quiet" type="button">Credits</button></div>
+  </div>
+</section>
+
+<section id="screen-credits" class="screen" hidden>
+  <div class="panel">
+    <h2>Credits</h2>
+    <div class="credits">
+      <p>Skyline Sniper is built with Three.js. Thank you to the artists who share their work.</p>
+      <h3>People</h3>
+      <p>Microsoft Rocketbox Avatar Library and animations, Copyright (c) 2020 Microsoft, MIT License.
+        <a href="https://github.com/microsoft/Microsoft-Rocketbox" target="_blank" rel="noopener">github.com/microsoft/Microsoft-Rocketbox</a></p>
+      <h3>Models (CC BY 4.0)</h3>
+      <p>Lowpoly Sedan &amp; Wagon by Han66st. Low Poly &amp; Game Ready Traffic Light by YourLocalJavaCarDealer. Tree low poly lowpoly by 00amza. Bullet by RoutineStudio. All from Sketchfab, licensed under <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a>.</p>
+      <h3>Rifle (placeholder, CC BY-NC-SA 4.0)</h3>
+      <p>L11A3/AWP/AWM by Aronvctr, Sketchfab. Non-commercial licence, used in test builds only.</p>
+      <h3>Environment (CC0)</h3>
+      <p>Sky, textures and street props from <a href="https://polyhaven.com" target="_blank" rel="noopener">Poly Haven</a>. Rifle and fallback character by <a href="https://quaternius.com" target="_blank" rel="noopener">Quaternius</a>.</p>
+      <h3>MIT License (Rocketbox)</h3>
+      <p>Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions: The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software. THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED.</p>
+    </div>
+    <div class="actions"><button id="btn-credits-back" class="btn btn-primary" type="button">Back</button></div>
+  </div>
+</section>
+
+<section id="screen-results" class="screen" hidden>
+  <div class="panel">
+    <div class="results-main">
+      <h2 id="results-title">Contract complete</h2>
+      <div class="results-stars" id="results-stars" data-tone="good"></div>
+      <p class="tagline" id="results-line" style="margin:0"></p>
+      <div class="stats">
+        <div><b>Time</b><span id="res-time">0:00</span></div>
+        <div><b>Shots</b><span id="res-shots">0</span></div>
+        <div><b>Distance</b><span id="res-distance">---</span></div>
+        <div><b>Headshot</b><span id="res-head">No</span></div>
+      </div>
+    </div>
+    <div class="results-side">
+      <ul class="rewards" id="results-rewards"></ul>
+      <div class="actions">
+        <button id="btn-next" class="btn btn-primary" type="button" hidden>Next contract</button>
+        <button id="btn-retry" class="btn btn-quiet" type="button">Play again</button>
+        <button id="btn-results-menu" class="btn btn-quiet" type="button">Menu</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div id="rotate"><div><strong>Turn your phone</strong><p>Hold the phone sideways to take position.</p></div></div>
+
+</body>
+</html>
