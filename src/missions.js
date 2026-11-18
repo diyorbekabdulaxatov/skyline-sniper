@@ -58,13 +58,22 @@ export const MISSIONS = [
     district: 'Container Port, 18:05',
     briefing:
       'Hale’s money moved through the port. Tonight his broker, Anton Breg, checks a container of cash on the pier and leaves on the ship at the end of the quay. You have the roof of an old warehouse block. Dock workers everywhere: shoot only Breg.',
-    target: { name: 'Anton Breg', description: 'Set by the Dockside scene.' },
+    target: {
+      name: 'Anton Breg',
+      description: 'Royal-blue and white track jacket, faded jeans. Arrives in a black van, checks an open blue container with the foreman, then walks the north edge of the pier to the ship\u2019s gangway. Two bodyguards in black.'
+    },
     scene: 'dockside',
     lighting: 'sunset',
     vantage: { eye: { x: 119, y: 19.7, z: -100 }, yaw: -0.74, pitch: -0.08, yawRange: 0.9, pitchMin: -0.7, pitchMax: 0.3, focus: { x: 230, z: -235 } },
     wind: { base: 3.2, gust: 1.8 },
     stars: ['Eliminate the target', 'Headshot', 'One shot, no misses'],
-    intel: [{ at: 0, text: 'Breg is on the pier. Find him among the dock workers.' }],
+    intel: [
+      { at: 0, text: 'Breg just got out of the black van on the pier. Blue and white track jacket.' },
+      { at: 8, text: 'He is meeting the foreman at the open blue container. Wait for him to stand still.' },
+      { at: 20, text: 'Wind off the water: over 3 m/s. Hold a little into it at this range.' },
+      { at: 34, text: 'His two guards in black stay at his side. Do not hit them: only Breg.' },
+      { at: 52, text: 'He is heading for the gangway. Once he is aboard, he is gone.' }
+    ],
     panicIntel: 'Shot heard. Breg is running for the ship!',
     results: {
       win: 'Breg is down on the pier. The ship sails without him.',

@@ -113,8 +113,9 @@ export function docksidePeople(kit) {
   target.walk(route, { loop: false, speed: 1.45 });
   const deck = route[route.length - 1];
 
-  // Two bodyguards walk the same route a step behind, one on each side.
-  const offsets = [{ x: -1.6, z: 1.1 }, { x: -2.2, z: -1.0 }];
+  // Two bodyguards walk the same route on Breg's far side from the roof (north and north-east of
+  // him), so they never stand in the line of fire between the shooter and their boss.
+  const offsets = [{ x: -0.8, z: -1.5 }, { x: 0.9, z: -1.4 }];
   const guards = GUARDS.map((id, i) => {
     const g = make(avatar(id), { suit: '#202326', trousers: '#1b1d20', skin: i ? '#a46e4f' : '#c68e6e', hair: '#1a1410' }, 1.86 + i * 0.03);
     const o = offsets[i];
@@ -157,7 +158,7 @@ export function docksidePeople(kit) {
       t.panicDelay = 0.3;
       guards.forEach((g, i) => {
         if (!g.alive) return;
-        g.path = t.path.map((p) => ({ x: p.x - 1.4 - i * 1.3, z: p.z }));
+        g.path = t.path.map((p) => ({ x: p.x - 1.0 - i * 1.2, z: p.z - 1.1 }));
         g.index = 0;
         g.loop = false;
         g.wait = 0;
