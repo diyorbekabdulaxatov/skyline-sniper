@@ -81,13 +81,22 @@ export const MISSIONS = [
     district: 'Old Town, 21:40',
     briefing:
       'The money ends with Councillor Mara Voss, who hosts a gala on a rooftop terrace across the plaza. Guests, waiters, string lights. She leaves through the stair door when the speeches end. Back on your first roof, in the dark.',
-    target: { name: 'Mara Voss', description: 'Set by the Rooftop Gala scene.' },
+    target: {
+      name: 'Mara Voss',
+      description: 'Brown knit sweater dress, belt, brown leather boots. Works the terrace with her bodyguard, speaks at the lectern by the banner, then leaves by the stair door.'
+    },
     scene: 'gala',
     lighting: 'dusk',
     vantage: { eye: { x: 0, y: 43.7, z: -1.0 }, yaw: -0.37, pitch: -0.11, yawRange: 1.1, pitchMin: -0.8, pitchMax: 0.3, focus: { x: 58, z: -150 } },
     wind: { base: 1.2, gust: 0.8 },
     stars: ['Eliminate the target', 'Headshot', 'One shot, no misses'],
-    intel: [{ at: 0, text: 'The gala is on the terrace across the plaza. Find Voss among the guests.' }],
+    intel: [
+      { at: 0, text: 'The gala is on the terrace across the plaza, under the string lights. Voss is coming up the stairs now.' },
+      { at: 7, text: 'Voss: brown knit dress, belt, brown boots. The tall man at her shoulder is her bodyguard.' },
+      { at: 30, text: 'She works the room table by table. Mind the guests around her: no one else gets hurt.' },
+      { at: 78, text: 'She is walking to the lectern. During the speech she stands still, facing you.' },
+      { at: 110, text: 'The speech is ending. Next she heads for the stair door in the north-west corner.' }
+    ],
     panicIntel: 'Shot heard. Voss is heading for the stair door!',
     results: {
       win: 'Voss is down. The gala ends early.',

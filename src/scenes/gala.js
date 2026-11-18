@@ -18,6 +18,13 @@ export const GALA = {
 };
 
 const TARGET_AVATAR = 'Female_Adult_11';
+/** The roof's own clutter (stair hut, AC units, tank, billboard...) inside this box is hidden
+ * while the gala is dressed, and put back for other contracts. Parapets and windows stay. */
+const CLUTTER_BOX = { x0: 42.8, x1: 73.2, z0: -172.2, z1: -127.8, y0: 25.9, y1: 46 };
+/** @type {{ inst: { mesh: THREE.InstancedMesh, i: number, m: THREE.Matrix4 }[], groups: THREE.Object3D[] } | null} */
+let hidden = null;
+/** @type {THREE.Group | null} */
+let dressed = null;
 const GUARD_AVATAR = 'Male_Adult_04';
 
 /**
@@ -25,9 +32,11 @@ const GUARD_AVATAR = 'Male_Adult_04';
  * casters; the bulbs glow with unlit materials and an additive sprite layer.
  * @returns {{ group: THREE.Group, colliders: number[][], rangeMeshes: THREE.Object3D[] }}
  */
-export function galaDress() {
+export function galaDress(scene) {
   const group = new THREE.Group();
   group.name = 'gala-dressing';
+  dressed = group;
+  if (scene) hideClutter(scene);
   /** @type {number[][]} */
   const colliders = [];
   /** @type {THREE.Object3D[]} */
@@ -316,6 +325,56 @@ export function galaPeople(kit) {
         Math.hypot(target.x - door.x, target.z - door.z) < 0.5;
     }
   };
+}
+
+/** Hides the roof's random clutter that would stand in the party (see CLUTTER_BOX). */
+function hideClutter(scene) {
+  if (hidden) return;
+  hidden = { inst: [], groups: [] };
+  const b = CLUTTER_BOX;
+  const inside = (p) => p.x > b.x0 && p.x < b.x1 && p.z > b.z0 && p.z < b.z1 && p.y > b.y0 && p.y < b.y1;
+  const m = new THREE.Matrix4();
+  const p = new THREE.Vector3();
+  const zero = new THREE.Matrix4().makeScale(0, 0, 0);
+  for (const o of scene.children) {
+    const obj = /** @type {any} */ (o);
+    if (obj.isInstancedMesh) {
+      let touched = false;
+      for (let i = 0; i < obj.count; i++) {
+        obj.getMatrixAt(i, m);
+        p.setFromMatrixPosition(m);
+        if (!inside(p)) continue;
+        hidden.inst.push({ mesh: obj, i, m: m.clone() });
+        obj.setMatrixAt(i, zero);
+        touched = true;
+      }
+      if (touched) {
+        obj.instanceMatrix.needsUpdate = true;
+        obj.computeBoundingSphere();
+      }
+    } else if (obj.isGroup && obj.visible && obj.children.length === 4 && inside(obj.position) &&
+      !obj.getObjectByProperty('isSkinnedMesh', true)) {
+      // A rooftop billboard (two legs, a back panel and the printed ad).
+      obj.visible = false;
+      hidden.groups.push(obj);
+    }
+  }
+}
+
+/** Puts the hidden clutter back once the gala's dressing has left the scene. */
+export function galaReset() {
+  if (!hidden || (dressed && dressed.parent)) return;
+  const meshes = new Set();
+  for (const h of hidden.inst) {
+    h.mesh.setMatrixAt(h.i, h.m);
+    meshes.add(h.mesh);
+  }
+  for (const mesh of meshes) {
+    mesh.instanceMatrix.needsUpdate = true;
+    mesh.computeBoundingSphere();
+  }
+  for (const g of hidden.groups) g.visible = true;
+  hidden = null;
 }
 
 /** Wooden decking planks. */

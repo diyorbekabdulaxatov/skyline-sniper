@@ -5,6 +5,7 @@
 //                                       removed when another contract starts (optional)
 //   onEscape(ctx, dt, t)             -> per-frame flourish after the target got away (optional)
 import { plazaPeople } from './plaza.js';
+import { galaPeople, galaDress, galaReset } from './gala.js';
 import { LAYOUT } from '../city.js';
 
 /**
@@ -28,5 +29,10 @@ export const SCENES = {
       const car = ctx.city.targetCar;
       car.position.set(LAYOUT.targetCar.x, car.position.y, LAYOUT.targetCar.z);
     }
+  },
+  gala: {
+    people: galaPeople,
+    dress: (scene) => galaDress(scene),
+    reset: () => galaReset()
   }
 };
