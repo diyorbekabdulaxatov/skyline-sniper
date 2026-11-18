@@ -71,8 +71,14 @@ export async function createGame(opts) {
   let dressing = { group: null, colliders: [], rangeMeshes: [] };
   await dressFor(mission);
 
+  /** Which scene's dressing is in the world now, so it can tidy up when replaced. */
+  /** @type {any} */
+  let dressedScene = null;
   async function dressFor(m) {
     if (dressing.group) scene.remove(dressing.group);
+    const prev = dressedScene && SCENES[dressedScene];
+    if (prev && prev.undress) prev.undress();
+    dressedScene = m.scene;
     dressing = { group: null, colliders: [], rangeMeshes: [] };
     const def = SCENES[m.scene];
     if (def && def.dress) {

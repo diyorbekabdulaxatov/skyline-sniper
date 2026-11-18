@@ -23,7 +23,7 @@ const PLAZA = new THREE.Vector3(0, 0, -70);
 const PRESETS = {
   golden: { exposure: 1.12, fog: '#c9b39e', fogDensity: 0.00085, env: 1.05, sky: 1, hemiSky: '#f3d6b8', hemiGround: '#5a4c42', hemi: 0.55, sun: '#ffc590', sunIntensity: 2.6, flare: true },
   sunset: { exposure: 1.0, fog: '#d8a07c', fogDensity: 0.0009, env: 0.95, sky: 0.95, hemiSky: '#ffcfa6', hemiGround: '#55443a', hemi: 0.62, sun: '#ff9c58', sunIntensity: 2.4, flare: true },
-  dusk: { exposure: 0.62, fog: '#3d4763', fogDensity: 0.0012, env: 0.45, sky: 0.45, hemiSky: '#8494c0', hemiGround: '#2a2a33', hemi: 0.45, sun: '#ffae78', sunIntensity: 0.55, flare: false }
+  dusk: { exposure: 0.74, fog: '#2e3954', fogDensity: 0.00105, env: 0.42, sky: 0.5, hemiSky: '#7f92c8', hemiGround: '#2b2a33', hemi: 0.62, sun: '#ff9e6a', sunIntensity: 0.45, flare: false }
 };
 
 /**

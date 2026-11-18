@@ -6,6 +6,7 @@
 //   onEscape(ctx, dt, t)             -> per-frame flourish after the target got away (optional)
 import { plazaPeople } from './plaza.js';
 import { docksidePeople, docksideDress } from './dockside.js';
+import { galaPeople, galaDress, galaReset } from './gala.js';
 import { LAYOUT } from '../city.js';
 
 /**
@@ -13,7 +14,8 @@ import { LAYOUT } from '../city.js';
  *   people: (kit: import('../people.js').CrowdKit) => import('../people.js').CrowdSetup,
  *   dress?: (scene: import('three').Scene, city: any) => Promise<{ group: import('three').Object3D, colliders: number[][], rangeMeshes: import('three').Object3D[] }> | { group: import('three').Object3D, colliders: number[][], rangeMeshes: import('three').Object3D[] },
  *   onEscape?: (ctx: { city: any }, dt: number, t: number) => void,
- *   reset?: (ctx: { city: any }) => void
+ *   reset?: (ctx: { city: any }) => void,
+ *   undress?: () => void
  * }} SceneDef
  */
 
@@ -33,5 +35,11 @@ export const SCENES = {
   dockside: {
     people: docksidePeople,
     dress: (scene) => docksideDress(scene)
+  },
+  gala: {
+    people: galaPeople,
+    dress: (scene) => galaDress(scene),
+    // The gala hides that roof's usual clutter; put it back when another contract takes over.
+    undress: () => galaReset()
   }
 };
