@@ -197,6 +197,7 @@ export function galaPeople(kit) {
   const audience = [];
 
   // Talking groups around the tables. Each spot is [x, z, female?].
+  /** @type {{ cx: number, cz: number, spots: [number, number, boolean][] }[]} */
   const groups = [
     { cx: 52, cz: -135, spots: [[51.0, -134.3, false], [52.9, -134.1, true], [52.1, -136.3, false]] },
     { cx: 60, cz: -133, spots: [[59.0, -132.2, false], [60.9, -132.0, true]] },
