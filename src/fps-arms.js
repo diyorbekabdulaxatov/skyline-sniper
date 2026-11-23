@@ -1,16 +1,17 @@
 // @ts-check
 // First-person gloved hands holding a sniper rifle ("sniper animated" by bumstrum on Sketchfab,
-// CC BY, test-only list in sketchfab.json). The model's own idle pose is frozen and the whole
-// model is sized and placed in front of the camera; recoil moves the holder in game.js.
+// CC BY, test-only list in sketchfab.json). The model's own idle pose is frozen and the model is
+// placed in front of the camera; recoil moves the holder in game.js.
 // Returns null when the file is missing, so the plain rifle view stays as the fallback.
 import * as THREE from 'three';
 import { loadGLTF } from './assets.js';
 
 /**
- * Placement of the model in camera space, tuned in the browser: longest side in metres,
- * offset (x right, y up, z forward is negative) and turn in radians.
+ * Placement in the rifle holder's space (game.js puts the holder at 0.17, -0.2, -0.36 in front
+ * of the camera), tuned in the browser at a 780x360 phone view. The model is authored in
+ * centimetres with its origin at the eye and the barrel along +z, hence the half turn.
  */
-export const ARMS_FIT = { size: 1.05, x: 0, y: 0, z: 0, rx: 0, ry: 0, rz: 0, poseTime: 0 };
+export const ARMS_FIT = { scale: 0.01, x: 0.03, y: -0.075, z: 0, rx: 0.02, ry: Math.PI + 0.06, rz: 0, poseTime: 0 };
 
 /**
  * @returns {Promise<{ root: THREE.Group, model: THREE.Object3D, mixer: THREE.AnimationMixer | null,
@@ -42,7 +43,7 @@ export async function loadFpsArms() {
     action = mixer.clipAction(gltf.animations[0]);
     action.play();
   }
-  // inner: centres and sizes the posed model; root: placed in camera space.
+  // inner: scales the model to metres; root: places it in the rifle holder.
   const inner = new THREE.Group();
   inner.add(model);
   const root = new THREE.Group();
@@ -56,15 +57,7 @@ export async function loadFpsArms() {
       mixer.setTime(ARMS_FIT.poseTime);
       action.paused = true;
     }
-    inner.scale.setScalar(1);
-    inner.position.set(0, 0, 0);
-    model.updateMatrixWorld(true);
-    const box = new THREE.Box3().setFromObject(model, true);
-    const size = box.getSize(new THREE.Vector3());
-    const k = ARMS_FIT.size / Math.max(size.x, size.y, size.z, 1e-6);
-    const c = box.getCenter(new THREE.Vector3());
-    inner.scale.setScalar(k);
-    inner.position.set(-c.x * k, -c.y * k, -c.z * k);
+    inner.scale.setScalar(ARMS_FIT.scale);
     root.position.set(ARMS_FIT.x, ARMS_FIT.y, ARMS_FIT.z);
     root.rotation.set(ARMS_FIT.rx, ARMS_FIT.ry, ARMS_FIT.rz, 'YXZ');
   };
