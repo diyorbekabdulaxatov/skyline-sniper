@@ -553,32 +553,31 @@ export async function marketDress(scene) {
 }
 
 /**
- * The Sketchfab market stall baked into one geometry per material, its flat ground patch left
- * out, scaled to a 3.4 x 3 m footprint, front toward +z and its back edge at z = 0, so an
- * instance at the stall lane's back line (u = 1) faces the aisle of the north row.
+ * The Sketchfab market stall (kiselevmiki, CC-BY) baked into one geometry per material, without
+ * its cobbled "floor" patch and the empty "Light 1" node, scaled to fit a 3.4 x 3 m footprint
+ * and turned so its front (crates and price tags, at -z in the file) faces +z, with the back
+ * edge at z = 0: an instance at the stall lane's back line (u = 1) of the north row faces the
+ * aisle. The file is in centimetres (about 212 x 157 x 165 without the floor).
  * @param {THREE.Object3D} root
  */
 function bakeStall(root) {
   try {
     root.updateMatrixWorld(true);
-    const whole = new THREE.Box3().setFromObject(root);
-    const span = Math.max(whole.max.x - whole.min.x, whole.max.z - whole.min.z) || 1;
+    const skip = /^(floor|light 1)$/i;
     const baked = bakeByMaterial(root, (mesh) => {
-      // Skip a ground patch: wide and flat at the bottom of the model.
-      const b = new THREE.Box3().setFromObject(mesh);
-      const flat = (b.max.y - b.min.y) < span * 0.04;
-      const wide = Math.max(b.max.x - b.min.x, b.max.z - b.min.z) > span * 0.6;
-      const low = b.max.y < whole.min.y + span * 0.06;
-      return !(flat && wide && low) && !/ground|floor|plane|cobble/i.test(mesh.name);
+      for (let o = /** @type {THREE.Object3D | null} */ (mesh); o; o = o.parent) {
+        if (skip.test(o.name)) return false;
+      }
+      return true;
     });
     if (!baked.size) return null;
     const size = normalise(baked, { length: 3.4 });
     // Long side along x; then fit the depth into 3 m and put the back edge on z = 0.
-    let turn = 0;
-    if (size.depth > size.width) turn = Math.PI / 2;
-    const d = turn ? size.width : size.depth;
-    const w = turn ? size.depth : size.width;
+    const sideways = size.depth > size.width;
+    const d = sideways ? size.width : size.depth;
+    const w = sideways ? size.depth : size.width;
     const k = Math.min(1, 3.0 / d, 3.4 / w);
+    const turn = (sideways ? Math.PI / 2 : 0) + Math.PI;
     const m = new THREE.Matrix4().makeTranslation(0, 0, (d * k) / 2).multiply(new THREE.Matrix4().makeScale(k, k, k)).multiply(new THREE.Matrix4().makeRotationY(turn));
     for (const g of baked.values()) {
       g.applyMatrix4(m);
@@ -592,9 +591,12 @@ function bakeStall(root) {
   }
 }
 
+/** Crates of fruit from the fruit-seller pack (arnedecoster, CC-BY; about 40 x 30 cm in the file). */
+const CRATE_PARTS = ['AppleCrate', 'LemonCrate', 'WatermelonCrate', 'MangusteenCrate', 'RambutanCrate', 'DurianCrate'];
+
 /**
  * Puts the fruit-seller pack's crates on the fresh-produce counters, one instanced set per kind
- * of crate. Parts are picked by size (crate-like, under a metre and a half), whatever their names.
+ * of crate, each scaled to a 0.8 m long crate.
  * @param {THREE.Group} group
  * @param {import('../sketchfab.js').Pack} pack
  * @param {{ x: number, z: number }[]} spots
@@ -602,11 +604,12 @@ function bakeStall(root) {
 function placeCrates(group, pack, spots) {
   /** @type {{ part: THREE.Object3D, s: number }[]} */
   const kinds = [];
-  for (const [, part] of [...pack.parts].sort((a, b) => (a[0] < b[0] ? -1 : 1))) {
+  for (const name of CRATE_PARTS) {
+    const part = pack.parts.get(name);
+    if (!part) continue;
     const size = partSize(part);
     const foot = Math.max(size.x, size.z);
-    if (!(foot > 0) || size.y > foot * 1.5) continue;
-    kinds.push({ part, s: 0.8 / foot });
+    if (foot > 0) kinds.push({ part, s: 0.8 / foot });
   }
   if (!kinds.length) return;
   /** @type {Map<number, { x: number, z: number, y: number, rot: number, s: number }[]>} */
