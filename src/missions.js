@@ -7,7 +7,7 @@
  * @typedef {{
  *   id: string, number: number, title: string, district: string, briefing: string,
  *   target: { name: string, description: string },
- *   scene: 'plaza' | 'dockside' | 'gala',
+ *   scene: 'plaza' | 'dockside' | 'gala' | 'park',
  *   lighting: 'golden' | 'sunset' | 'dusk',
  *   vantage: { eye: { x: number, y: number, z: number }, yaw: number, pitch: number,
  *     yawRange: number, pitchMin: number, pitchMax: number, focus: { x: number, z: number } },
@@ -114,6 +114,39 @@ export const MISSIONS = [
       civilian: 'A guest is dead. The city wakes up to your face on every screen.'
     },
     seed: 303
+  },
+  {
+    id: 'park-run',
+    number: 7,
+    title: 'Park Run',
+    district: 'Riverside Park, 19:10',
+    briefing:
+      'Dorian Kast settles the network\u2019s debts by hand. Every evening at sunset he runs the same loop through Riverside Park with one bodyguard, and a car waits for him at the west gate. You have the roof of the corner block above the park. He hardly ever stands still: lead your shot.',
+    target: {
+      name: 'Dorian Kast',
+      description: 'Red hoodie, black running shorts and tights, white trainers. Runs south along the river, stretches at the fitness bar by the water, then cuts across the lawn to a black sedan at the west gate. His bodyguard runs at his shoulder in grey.'
+    },
+    scene: 'park',
+    lighting: 'sunset',
+    vantage: { eye: { x: 37, y: 27.7, z: 257 }, yaw: -0.6, pitch: -0.2, yawRange: 0.72, pitchMin: -0.75, pitchMax: 0.25, focus: { x: 100, z: 170 } },
+    wind: { base: 2.2, gust: 1.4 },
+    stars: ['Eliminate the target', 'Headshot', 'One shot, no misses'],
+    intel: [
+      { at: 0, text: 'Kast is on his evening run, coming south along the river. Red hoodie, black shorts. The man in grey is his bodyguard.' },
+      { at: 8, text: 'He runs at about 3 m/s. The bullet takes a moment to get there: aim ahead of him, in the direction he is running.' },
+      { at: 20, text: 'At this range, hold the cross about one body width in front of his chest. When he runs toward you, he needs less.' },
+      { at: 40, text: 'He is slowing for the fitness bar by the water. He stops there to stretch for a few seconds: your standing shot.' },
+      { at: 66, text: 'He is running again, across the open lawn toward the west gate. Lead him to the left.' },
+      { at: 88, text: 'The car at the west gate is waiting for him. If he gets in, he is gone.' }
+    ],
+    panicIntel: 'Shot heard. Kast is sprinting for the gate and his car!',
+    results: {
+      win: 'Kast is down on the lawn. The network has lost its enforcer.',
+      winHead: 'One shot through the evening light. Kast never finished his run.',
+      escaped: 'Kast reached the car and is gone. Tomorrow he will run somewhere else.',
+      civilian: 'A bystander is dead. Police fill the park and the contract is void.'
+    },
+    seed: 707
   }
 ];
 

@@ -7,6 +7,7 @@
 import { plazaPeople } from './plaza.js';
 import { docksidePeople, docksideDress } from './dockside.js';
 import { galaPeople, galaDress, galaReset } from './gala.js';
+import { parkPeople, parkDress, parkEscape, parkReset, parkUndress } from './park.js';
 import { LAYOUT } from '../city.js';
 
 /**
@@ -41,5 +42,13 @@ export const SCENES = {
     dress: (scene) => galaDress(scene),
     // The gala hides that roof's usual clutter; put it back when another contract takes over.
     undress: () => galaReset()
+  },
+  park: {
+    people: parkPeople,
+    dress: (scene) => parkDress(scene),
+    // Kast's sedan pulls away north once he is in it.
+    onEscape: (ctx, dt, t) => parkEscape(dt, t),
+    reset: () => parkReset(),
+    undress: () => parkUndress()
   }
 };

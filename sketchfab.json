@@ -62,12 +62,6 @@
       "use": "Park Run: the fitness bar where the target stops to stretch"
     },
     {
-      "name": "drinking_fountain",
-      "uid": "383b49d7f1db4f6bbf22ac97ea72cb6d",
-      "texture": 512,
-      "use": "Park Run: drinking fountain at the fitness corner"
-    },
-    {
       "name": "bicycle",
       "uid": "da6507928c0c4a5c8776008cdb9f747e",
       "texture": 512,

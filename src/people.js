@@ -27,7 +27,11 @@ const SKINS = ['#e0b49a', '#c68e6e', '#a46e4f', '#7a4b33', '#f1c9b0', '#b98262']
 const HAIR = ['#1a1410', '#3b2a1e', '#6b4c33', '#9a7b55', '#2b2b2b', '#8c8c8c'];
 
 /**
- * @typedef {{ suit: string, trousers: string, skin: string, hair: string, tie?: string, avatar?: string }} Look
+ * @typedef {{ top: string, bottom: string, shoes?: string }} Outfit
+ *   Sportswear dyed over a Rocketbox avatar's own clothes (see dressOutfit): top covers the torso
+ *   and both arms to the wrists, bottom the hips and legs to the ankles, shoes the feet.
+ * @typedef {{ suit: string, trousers: string, skin: string, hair: string, tie?: string, avatar?: string,
+ *   outfit?: Outfit }} Look
  * @typedef {{ x: number, z: number, wait?: number, anim?: string }} Waypoint
  * @typedef {{ clip: THREE.AnimationClip, speed: number }} RoleClip
  * @typedef {{ kind: 'rocketbox' | 'fallback', id: string, female: boolean, gltf: any,
@@ -141,6 +145,85 @@ async function loadFallback() {
   return { kind: 'fallback', id: 'man-suit', female: false, gltf, baseHeight: measure(gltf.scene).getSize(new THREE.Vector3()).y, clips };
 }
 
+/** Outfit zone of a Biped bone: 0 top, 1 bottom, 2 shoes, -1 keeps the avatar's own texture. */
+function outfitZone(name) {
+  if (/Spine|Clavicle|UpperArm|Forearm/.test(name)) return 0;
+  if (/Pelvis|Thigh|Calf/.test(name) || name === 'Bip01') return 1;
+  if (/Foot|Toe/.test(name)) return 2;
+  return -1;
+}
+
+/**
+ * Dyes a Rocketbox avatar's clothes into sportswear (a hoodie or running top, shorts or tights,
+ * trainers). Each body vertex takes its colour from the bones that move it: torso and arms get
+ * the top, hips and legs the bottom, feet the shoes; hands, neck and head keep the avatar's own
+ * texture, and the seams blend with the skin weights. The dye keeps the texture's light and
+ * shade, so folds still show. Geometry and material are copied, so other people with the same
+ * avatar keep their clothes.
+ * @param {THREE.Object3D} model a cloned avatar
+ * @param {Outfit} outfit
+ */
+export function dressOutfit(model, outfit) {
+  const colors = [outfit.top, outfit.bottom, outfit.shoes || '#e4e4e0'].map((c) => new THREE.Color(c));
+  model.traverse((o) => {
+    const mesh = /** @type {any} */ (o);
+    if (!mesh.isSkinnedMesh || !mesh.skeleton || Array.isArray(mesh.material)) return;
+    const mat = mesh.material;
+    if (!mat || !/body/i.test(mat.name || '')) return;
+    const geo = mesh.geometry.clone();
+    const idx = geo.attributes.skinIndex;
+    const wts = geo.attributes.skinWeight;
+    if (!idx || !wts) return;
+    const zones = mesh.skeleton.bones.map((b) => outfitZone(b.name));
+    const data = new Float32Array(idx.count * 4);
+    const getI = [(i) => idx.getX(i), (i) => idx.getY(i), (i) => idx.getZ(i), (i) => idx.getW(i)];
+    const getW = [(i) => wts.getX(i), (i) => wts.getY(i), (i) => wts.getZ(i), (i) => wts.getW(i)];
+    for (let i = 0; i < idx.count; i++) {
+      let r = 0;
+      let g = 0;
+      let b = 0;
+      let w = 0;
+      for (let k = 0; k < 4; k++) {
+        const weight = getW[k](i);
+        if (!weight) continue;
+        const zone = zones[Math.round(getI[k](i))];
+        if (zone === undefined || zone < 0) continue;
+        const c = colors[zone];
+        r += c.r * weight;
+        g += c.g * weight;
+        b += c.b * weight;
+        w += weight;
+      }
+      if (w > 0) {
+        data[i * 4] = r / w;
+        data[i * 4 + 1] = g / w;
+        data[i * 4 + 2] = b / w;
+      }
+      data[i * 4 + 3] = Math.min(1, w);
+    }
+    geo.setAttribute('outfit', new THREE.BufferAttribute(data, 4));
+    mesh.geometry = geo;
+    const dyed = mat.clone();
+    dyed.onBeforeCompile = (shader) => {
+      shader.vertexShader = shader.vertexShader
+        .replace('#include <common>', '#include <common>\nattribute vec4 outfit;\nvarying vec4 vOutfit;')
+        .replace('#include <begin_vertex>', '#include <begin_vertex>\nvOutfit = outfit;');
+      shader.fragmentShader = shader.fragmentShader
+        .replace('#include <common>', '#include <common>\nvarying vec4 vOutfit;')
+        .replace('#include <map_fragment>', [
+          '#include <map_fragment>',
+          '{',
+          '  float lum = dot(diffuseColor.rgb, vec3(0.2126, 0.7152, 0.0722));',
+          '  vec3 dyed = vOutfit.rgb * clamp(0.55 + 1.6 * lum, 0.55, 1.25);',
+          '  diffuseColor.rgb = mix(diffuseColor.rgb, dyed, vOutfit.a);',
+          '}'
+        ].join('\n'));
+    };
+    dyed.customProgramCacheKey = () => 'outfit';
+    mesh.material = dyed;
+  });
+}
+
 /** Where shots come from (the current mission's eye); bodies fall away from it. */
 const shooter = { x: LAYOUT.eye.x, z: LAYOUT.eye.z };
 
@@ -188,6 +271,7 @@ export class Person {
         mesh.material = Array.isArray(mesh.material) ? mesh.material.map(recolor) : recolor(mesh.material);
       }
     });
+    if (look.outfit && base.kind === 'rocketbox') dressOutfit(model, look.outfit);
     this.model = model;
     this.root.add(model);
     this.mixer = new THREE.AnimationMixer(model);
