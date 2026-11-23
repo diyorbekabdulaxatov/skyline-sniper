@@ -10,6 +10,7 @@ import { personHit } from './ballistics.js';
 import { loadGLTF, measure, loadAnimationSet } from './assets.js';
 import { LAYOUT } from './city.js';
 import { rng } from './facades.js';
+import { dressWorkwear } from './workwear.js';
 
 const FALLBACK_URL = './models/man-suit.glb';
 const PEOPLE_DIR = './models/people/';
@@ -27,7 +28,10 @@ const SKINS = ['#e0b49a', '#c68e6e', '#a46e4f', '#7a4b33', '#f1c9b0', '#b98262']
 const HAIR = ['#1a1410', '#3b2a1e', '#6b4c33', '#9a7b55', '#2b2b2b', '#8c8c8c'];
 
 /**
- * @typedef {{ suit: string, trousers: string, skin: string, hair: string, tie?: string, avatar?: string }} Look
+ * Optional site workwear (workwear.js): a hard hat and hi-vis vest colour, and a colour the
+ * avatar's own clothes are recoloured toward (a coat that sets one person apart).
+ * @typedef {{ suit: string, trousers: string, skin: string, hair: string, tie?: string, avatar?: string,
+ *   hat?: string, vest?: string, coat?: string }} Look
  * @typedef {{ x: number, z: number, wait?: number, anim?: string }} Waypoint
  * @typedef {{ clip: THREE.AnimationClip, speed: number }} RoleClip
  * @typedef {{ kind: 'rocketbox' | 'fallback', id: string, female: boolean, gltf: any,
@@ -219,6 +223,7 @@ export class Person {
     this.fall = null;
     /** Ground height under this person, set by place(). */
     this.groundY = LAYOUT.walkY;
+    dressWorkwear(this, look);
   }
 
   get x() {

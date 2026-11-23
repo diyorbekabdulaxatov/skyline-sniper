@@ -7,8 +7,8 @@
  * @typedef {{
  *   id: string, number: number, title: string, district: string, briefing: string,
  *   target: { name: string, description: string },
- *   scene: 'plaza' | 'dockside' | 'gala' | 'market',
- *   lighting: 'golden' | 'sunset' | 'dusk' | 'morning',
+ *   scene: 'plaza' | 'dockside' | 'gala' | 'market' | 'construction',
+ *   lighting: 'golden' | 'sunset' | 'dusk' | 'morning' | 'overcast',
  *   vantage: { eye: { x: number, y: number, z: number }, yaw: number, pitch: number,
  *     yawRange: number, pitchMin: number, pitchMax: number, focus: { x: number, z: number } },
  *   wind: { base: number, gust: number },
@@ -147,6 +147,40 @@ export const MISSIONS = [
       civilian: 'A shopper is dead. The market empties, the police close the Old Town and the contract is void.'
     },
     seed: 404
+  },
+  {
+    id: 'construction-site',
+    number: 5,
+    title: 'Construction Site',
+    district: 'North Quarter, 16:40',
+    briefing:
+      'Leon Darrow built the network: his towers washed Hale\u2019s money, Breg moved it and Voss signed his permits. This afternoon he shows two investors his new tower at the Northgate site. You are on the deck of an idle tower crane on the next plot. Builders everywhere in hard hats: only Darrow wears a white one.',
+    target: {
+      name: 'Leon Darrow',
+      description: 'Camel overcoat, dark red shirt, white hard hat. Tours the yard with his foreman and his architect, rides the builders\u2019 hoist up to the open top floor to meet the investors, then leaves in a black SUV outside the south gate.'
+    },
+    scene: 'construction',
+    lighting: 'overcast',
+    vantage: { eye: { x: -95.2, y: 42.2, z: -329.4 }, yaw: -1.55, pitch: -0.24, yawRange: 0.75, pitchMin: -0.75, pitchMax: 0.3, focus: { x: 5, z: -330 } },
+    wind: { base: 2.4, gust: 1.6 },
+    stars: ['Eliminate the target', 'Headshot', 'One shot, no misses'],
+    intel: [
+      { at: 0, text: 'Darrow is at the site office by the south gate. Camel coat, white hard hat.' },
+      { at: 10, text: 'Every builder wears a yellow or orange hat. White is Darrow; blue hats are his guests.' },
+      { at: 20, text: 'He stops to watch the concrete pour. The mixer truck is between you and him: wait.' },
+      { at: 36, text: 'He is taking the builders\u2019 hoist on the west face up to the open top floor.' },
+      { at: 66, text: 'On the top floor he shows the investors the view, facing you. He will talk for about twenty seconds.' },
+      { at: 92, text: 'He is going back down. Next stop: his black SUV outside the south gate.' },
+      { at: 124, text: 'He is crossing the yard to the gate. If he gets into the SUV, he is gone.' }
+    ],
+    panicIntel: 'Shot heard. Darrow is running for the hoist and his SUV!',
+    results: {
+      win: 'Darrow is down on his own site. The network has no money left to wash.',
+      winHead: 'One shot from the crane. The tower will carry someone else\u2019s name.',
+      escaped: 'Darrow made it to his SUV. By tonight he is out of the country.',
+      civilian: 'A builder is dead. The site is sealed off and the contract is void.'
+    },
+    seed: 505
   }
 ];
 

@@ -56,6 +56,48 @@
       "texture": 1024,
       "use": "Fruit crates on the Market Day counters",
       "licence": "CC Attribution 4.0, Lowpoly Fruit Seller Set (Bangkok Cityscene) by arnedecoster"
+    },
+    {
+      "name": "tower_crane",
+      "uid": "49851dc7a51b43bda6aea06856c26a85",
+      "texture": 1024,
+      "use": "Construction Site: the tower crane over the half-built tower (Tower Crane by Chamodp, CC BY 4.0)"
+    },
+    {
+      "name": "mixer_truck",
+      "uid": "5d8e776e92f0459697c5e3abdca3a22f",
+      "texture": 1024,
+      "use": "Construction Site: concrete mixer truck moving through the yard (Classic Mixer Truck by niev, CC BY 4.0)"
+    },
+    {
+      "name": "excavator",
+      "uid": "84cd8adb9d104010b10f3fa89e5f6a70",
+      "texture": 512,
+      "use": "Construction Site: excavator at the foundation pit (Excavator by rhymone, CC BY 4.0)"
+    },
+    {
+      "name": "construction_props",
+      "uid": "30a093c821e04af28fde96aec06bc257",
+      "texture": 1024,
+      "use": "Construction Site: mesh fencing, barriers, signs and site clutter (CONSTRUCTION 100 PROPS ASSET PACK by oxygen3d, CC BY 4.0)"
+    },
+    {
+      "name": "site_materials",
+      "uid": "a6cccf5af6514f2f9289beeead38fe1b",
+      "texture": 1024,
+      "use": "Construction Site: concrete pipes, pallets, plank stacks, cement bags (Construction Site Asset Pack by vmatthew, CC BY 4.0)"
+    },
+    {
+      "name": "scaffolding",
+      "uid": "c1f03864ec72449c8968f0630c287c8d",
+      "texture": 1024,
+      "use": "Construction Site: steel scaffolding on the tower faces (Realistic Metal Scaffolding by jungle_jim, CC BY 4.0)"
+    },
+    {
+      "name": "car_pack",
+      "uid": "20f9af9b8a404d5cb022ac6fe87f21f5",
+      "texture": 1024,
+      "use": "Construction Site: the target black SUV at the gate (Generic passenger car pack by comrade1280, CC BY 4.0)"
     }
   ]
 }
