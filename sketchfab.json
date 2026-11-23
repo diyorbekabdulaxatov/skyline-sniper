@@ -42,6 +42,20 @@
       "uid": "b48999a250b2433da59f705c371a49b2",
       "texture": 1024,
       "use": "First-person gloved hands holding a sniper rifle"
+    },
+    {
+      "name": "market_stall",
+      "uid": "6bb15dc7056241bfac6ee747fc866e45",
+      "texture": 512,
+      "use": "Blue-and-white striped fruit stall for Market Day (the meeting stall and two on the right)",
+      "licence": "CC Attribution 4.0, market stall by kiselevmiki"
+    },
+    {
+      "name": "fruit_crates",
+      "uid": "3020e2e3f8b442c6b34cc93a1d8a51e3",
+      "texture": 1024,
+      "use": "Fruit crates on the Market Day counters",
+      "licence": "CC Attribution 4.0, Lowpoly Fruit Seller Set (Bangkok Cityscene) by arnedecoster"
     }
   ]
 }

@@ -19,10 +19,18 @@ const SUN_AZIMUTH = -1.25;
 const MIN_LIGHT_ELEVATION = 0.36;
 const PLAZA = new THREE.Vector3(0, 0, -70);
 
-/** Looks for each time of day, all lit by the same sky panorama. */
+/**
+ * Looks for each time of day, all lit by the same sky panorama. `minElevation` (radians) raises
+ * the shadow light above the default minimum, for shorter shadows (the market street in the
+ * morning would otherwise lie in its west side's shadow).
+ * @type {Record<string, { exposure: number, fog: string, fogDensity: number, env: number, sky: number,
+ *   hemiSky: string, hemiGround: string, hemi: number, sun: string, sunIntensity: number, flare: boolean,
+ *   minElevation?: number }>}
+ */
 const PRESETS = {
   golden: { exposure: 1.12, fog: '#c9b39e', fogDensity: 0.00085, env: 1.05, sky: 1, hemiSky: '#f3d6b8', hemiGround: '#5a4c42', hemi: 0.55, sun: '#ffc590', sunIntensity: 2.6, flare: true },
   sunset: { exposure: 1.0, fog: '#d8a07c', fogDensity: 0.0009, env: 0.95, sky: 0.95, hemiSky: '#ffcfa6', hemiGround: '#55443a', hemi: 0.62, sun: '#ff9c58', sunIntensity: 2.4, flare: true },
+  morning: { exposure: 1.2, fog: '#c9d2d9', fogDensity: 0.0007, env: 1.15, sky: 1.05, hemiSky: '#e9eef3', hemiGround: '#6b6258', hemi: 0.72, sun: '#fff1de', sunIntensity: 3.0, flare: true, minElevation: 0.8 },
   dusk: { exposure: 0.74, fog: '#2e3954', fogDensity: 0.00105, env: 0.42, sky: 0.5, hemiSky: '#7f92c8', hemiGround: '#2b2a33', hemi: 0.62, sun: '#ff9e6a', sunIntensity: 0.45, flare: false }
 };
 
@@ -64,15 +72,19 @@ export async function setupLighting(scene, renderer, manifest) {
 
   // Shadow light: same azimuth as the sky's sun, raised to a playable minimum elevation.
   const lightDir = sunDir.clone();
-  const elevation = Math.asin(Math.min(1, Math.max(-1, lightDir.y)));
-  if (elevation < MIN_LIGHT_ELEVATION) {
-    const flat = Math.hypot(lightDir.x, lightDir.z) || 1;
+  const elevation = Math.asin(Math.min(1, Math.max(-1, sunDir.y)));
+  /** Points lightDir at the sun's azimuth, at least `minElevation` above the horizon. */
+  const aimLight = (minElevation) => {
+    lightDir.copy(sunDir);
+    if (elevation >= minElevation) return;
+    const flat = Math.hypot(sunDir.x, sunDir.z) || 1;
     lightDir.set(
-      (lightDir.x / flat) * Math.cos(MIN_LIGHT_ELEVATION),
-      Math.sin(MIN_LIGHT_ELEVATION),
-      (lightDir.z / flat) * Math.cos(MIN_LIGHT_ELEVATION)
+      (sunDir.x / flat) * Math.cos(minElevation),
+      Math.sin(minElevation),
+      (sunDir.z / flat) * Math.cos(minElevation)
     );
-  }
+  };
+  aimLight(MIN_LIGHT_ELEVATION);
   const sun = new THREE.DirectionalLight('#ffc590', 2.6);
   sun.position.copy(PLAZA).addScaledVector(lightDir, 320);
   sun.target.position.copy(PLAZA);
@@ -92,7 +104,7 @@ export async function setupLighting(scene, renderer, manifest) {
   /**
    * Time-of-day presets: the same sky panorama, tinted and dimmed. `focus` moves the shadow
    * camera to where the contract happens (the shadow map only covers 300 x 300 m).
-   * @param {string} name 'golden' | 'sunset' | 'dusk'
+   * @param {string} name 'golden' | 'sunset' | 'dusk' | 'morning'
    * @param {{ x: number, z: number }} [focus]
    */
   function setPreset(name, focus) {
@@ -108,6 +120,7 @@ export async function setupLighting(scene, renderer, manifest) {
     sun.color.set(p.sun);
     sun.intensity = p.sunIntensity;
     flareAnchor.visible = p.flare;
+    aimLight(Math.max(MIN_LIGHT_ELEVATION, p.minElevation || 0));
     const f = focus || { x: PLAZA.x, z: PLAZA.z };
     sun.target.position.set(f.x, 0, f.z);
     sun.position.copy(sun.target.position).addScaledVector(lightDir, 320);

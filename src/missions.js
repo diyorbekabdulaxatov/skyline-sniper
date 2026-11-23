@@ -7,8 +7,8 @@
  * @typedef {{
  *   id: string, number: number, title: string, district: string, briefing: string,
  *   target: { name: string, description: string },
- *   scene: 'plaza' | 'dockside' | 'gala',
- *   lighting: 'golden' | 'sunset' | 'dusk',
+ *   scene: 'plaza' | 'dockside' | 'gala' | 'market',
+ *   lighting: 'golden' | 'sunset' | 'dusk' | 'morning',
  *   vantage: { eye: { x: number, y: number, z: number }, yaw: number, pitch: number,
  *     yawRange: number, pitchMin: number, pitchMax: number, focus: { x: number, z: number } },
  *   wind: { base: number, gust: number },
@@ -114,6 +114,39 @@ export const MISSIONS = [
       civilian: 'A guest is dead. The city wakes up to your face on every screen.'
     },
     seed: 303
+  },
+  {
+    id: 'market-day',
+    number: 4,
+    title: 'Market Day',
+    district: 'Old Town, 10:15',
+    briefing:
+      'Every container of Breg\u2019s cash passed customs with one signature: Deputy Customs Director Lucien Marek. On Saturdays he shops at the Tanners Row street market like anyone else. Today a courier hands him an envelope at the fruit stall, then a taxi waits for him at the end of the street. You have the roof at the west end. The street is packed: be sure before you fire.',
+    target: {
+      name: 'Lucien Marek',
+      description: 'Red track jacket with white stripes down the sleeves, black track trousers with white piping, white trainers, dark hair. Browses the bakery stall, meets a courier in a beige vest at the striped fruit stall, then walks to the yellow taxi at the far end of the street.'
+    },
+    scene: 'market',
+    lighting: 'morning',
+    vantage: { eye: { x: -283, y: 19.7, z: -65 }, yaw: -Math.PI / 2, pitch: -0.24, yawRange: 0.5, pitchMin: -0.75, pitchMax: 0.3, focus: { x: -215, z: -65 } },
+    wind: { base: 1.4, gust: 1.0 },
+    stars: ['Eliminate the target', 'Headshot', 'One shot, no misses'],
+    intel: [
+      { at: 0, text: 'Market day on Tanners Row. Marek just walked in under your building. Red track jacket, black track trousers.' },
+      { at: 9, text: 'He stops at the bakery stall on the right for a few seconds. Mind the shoppers around him.' },
+      { at: 28, text: 'His courier is the man in the beige vest at the blue-and-white fruit stall on the left.' },
+      { at: 42, text: 'Nobody else on the street wears red. Check the jacket before you fire.' },
+      { at: 57, text: 'Marek is with the courier now. He stands there for about twenty seconds.' },
+      { at: 82, text: 'He has the envelope. Next he walks to the yellow taxi at the end of the street. If he gets in, he is gone.' }
+    ],
+    panicIntel: 'Shot heard. Marek is running for the taxi!',
+    results: {
+      win: 'Marek is down among the fruit crates. The port has lost its signature.',
+      winHead: 'One shot over the market. Marek never reached his taxi.',
+      escaped: 'Marek reached the taxi and is gone. By tonight he will be out of the country.',
+      civilian: 'A shopper is dead. The market empties, the police close the Old Town and the contract is void.'
+    },
+    seed: 404
   }
 ];
 
