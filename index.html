@@ -235,7 +235,7 @@ button { cursor: pointer; }
 .panel.wide { width: min(800px, 100%); }
 .panel-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
 .actions.row { flex-direction: row; justify-content: flex-end; }
-.contract-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.contract-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; }
 .contract-card { display: flex; flex-direction: column; gap: 6px; padding: 12px; border-radius: 12px; background: rgba(255,255,255,.05); border: 1px solid var(--line); min-height: 150px; }
 .contract-card .num { font: 700 11px/1 var(--f-display); letter-spacing: .2em; color: var(--accent); }
 .contract-card h3 { font: 700 20px/1.05 var(--f-display); margin: 0; letter-spacing: .03em; }
