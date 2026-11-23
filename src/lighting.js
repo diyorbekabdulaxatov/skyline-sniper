@@ -25,7 +25,7 @@ const PLAZA = new THREE.Vector3(0, 0, -70);
  * morning would otherwise lie in its west side's shadow).
  * @type {Record<string, { exposure: number, fog: string, fogDensity: number, env: number, sky: number,
  *   hemiSky: string, hemiGround: string, hemi: number, sun: string, sunIntensity: number, flare: boolean,
- *   minElevation?: number }>}
+ *   minElevation?: number, elevation?: number, clouds?: boolean }>}
  */
 const PRESETS = {
   golden: { exposure: 1.12, fog: '#c9b39e', fogDensity: 0.00085, env: 1.05, sky: 1, hemiSky: '#f3d6b8', hemiGround: '#5a4c42', hemi: 0.55, sun: '#ffc590', sunIntensity: 2.6, flare: true },
