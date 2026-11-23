@@ -23,7 +23,10 @@ const PLAZA = new THREE.Vector3(0, 0, -70);
 const PRESETS = {
   golden: { exposure: 1.12, fog: '#c9b39e', fogDensity: 0.00085, env: 1.05, sky: 1, hemiSky: '#f3d6b8', hemiGround: '#5a4c42', hemi: 0.55, sun: '#ffc590', sunIntensity: 2.6, flare: true },
   sunset: { exposure: 1.0, fog: '#d8a07c', fogDensity: 0.0009, env: 0.95, sky: 0.95, hemiSky: '#ffcfa6', hemiGround: '#55443a', hemi: 0.62, sun: '#ff9c58', sunIntensity: 2.4, flare: true },
-  dusk: { exposure: 0.74, fog: '#2e3954', fogDensity: 0.00105, env: 0.42, sky: 0.5, hemiSky: '#7f92c8', hemiGround: '#2b2a33', hemi: 0.62, sun: '#ff9e6a', sunIntensity: 0.45, flare: false }
+  dusk: { exposure: 0.74, fog: '#2e3954', fogDensity: 0.00105, env: 0.42, sky: 0.5, hemiSky: '#7f92c8', hemiGround: '#2b2a33', hemi: 0.62, sun: '#ff9e6a', sunIntensity: 0.45, flare: false },
+  // Midday: a high white sun (the shadow light is raised to `elevation` radians on the sky sun's
+  // azimuth), bright sky, short shadows and a clear, slightly blue haze.
+  noon: { exposure: 1.02, fog: '#b9c7d6', fogDensity: 0.00062, env: 1.2, sky: 1.15, hemiSky: '#eaf1fb', hemiGround: '#6d675f', hemi: 0.72, sun: '#fff5e6', sunIntensity: 3.2, flare: true, elevation: 1.05 }
 };
 
 /**
@@ -92,10 +95,11 @@ export async function setupLighting(scene, renderer, manifest) {
   /**
    * Time-of-day presets: the same sky panorama, tinted and dimmed. `focus` moves the shadow
    * camera to where the contract happens (the shadow map only covers 300 x 300 m).
-   * @param {string} name 'golden' | 'sunset' | 'dusk'
+   * @param {string} name 'golden' | 'sunset' | 'dusk' | 'noon'
    * @param {{ x: number, z: number }} [focus]
    */
   function setPreset(name, focus) {
+    /** @type {any} */
     const p = PRESETS[name] || PRESETS.golden;
     renderer.toneMappingExposure = p.exposure;
     /** @type {THREE.FogExp2} */ (scene.fog).color.set(p.fog);
@@ -110,7 +114,16 @@ export async function setupLighting(scene, renderer, manifest) {
     flareAnchor.visible = p.flare;
     const f = focus || { x: PLAZA.x, z: PLAZA.z };
     sun.target.position.set(f.x, 0, f.z);
-    sun.position.copy(sun.target.position).addScaledVector(lightDir, 320);
+    let dir = lightDir;
+    if (p.elevation) {
+      const flat = Math.hypot(lightDir.x, lightDir.z) || 1;
+      dir = new THREE.Vector3(
+        (lightDir.x / flat) * Math.cos(p.elevation),
+        Math.sin(p.elevation),
+        (lightDir.z / flat) * Math.cos(p.elevation)
+      );
+    }
+    sun.position.copy(sun.target.position).addScaledVector(dir, 320);
     sun.target.updateMatrixWorld();
   }
   setPreset('golden');

@@ -7,6 +7,7 @@
 import { plazaPeople } from './plaza.js';
 import { docksidePeople, docksideDress } from './dockside.js';
 import { galaPeople, galaDress, galaReset } from './gala.js';
+import { poolPeople, poolDress, poolUndress } from './pool.js';
 import { LAYOUT } from '../city.js';
 
 /**
@@ -41,5 +42,11 @@ export const SCENES = {
     dress: (scene) => galaDress(scene),
     // The gala hides that roof's usual clutter; put it back when another contract takes over.
     undress: () => galaReset()
+  },
+  pool: {
+    people: poolPeople,
+    dress: (scene) => poolDress(scene),
+    // The dressing hides the distant skyline boxes in its district; put them back afterwards.
+    undress: () => poolUndress()
   }
 };

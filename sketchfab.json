@@ -42,6 +42,30 @@
       "uid": "b48999a250b2433da59f705c371a49b2",
       "texture": 1024,
       "use": "First-person gloved hands holding a sniper rifle"
+    },
+    {
+      "name": "pool_lounger",
+      "uid": "4b7ac7b3a92d40849a1005b74e26be1c",
+      "texture": 512,
+      "use": "Rooftop Pool: white plastic sun loungers (Plastic lounge chair by runemarkstudio, CC BY)"
+    },
+    {
+      "name": "pool_umbrella",
+      "uid": "d6c9705a4f8e421ea473196ab9910088",
+      "texture": 512,
+      "use": "Rooftop Pool: white sun umbrellas (White outdoor Umbrella by Ngo.Phuoc.Truong, CC BY)"
+    },
+    {
+      "name": "pool_plants",
+      "uid": "967b4bf23fac4098993776fcfc2d3318",
+      "texture": 512,
+      "use": "Rooftop Pool: potted grasses along the railings (Optimized Potted Plants by Nicholas01, CC BY)"
+    },
+    {
+      "name": "pool_lounge_set",
+      "uid": "6a6c0f882e0e444c9d95dee1b0cadda1",
+      "texture": 512,
+      "use": "Rooftop Pool: outdoor sofa set in the east aisle (Lounge Set by que_3d, CC BY)"
     }
   ]
 }

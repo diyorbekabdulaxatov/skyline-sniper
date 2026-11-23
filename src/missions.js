@@ -7,8 +7,8 @@
  * @typedef {{
  *   id: string, number: number, title: string, district: string, briefing: string,
  *   target: { name: string, description: string },
- *   scene: 'plaza' | 'dockside' | 'gala',
- *   lighting: 'golden' | 'sunset' | 'dusk',
+ *   scene: 'plaza' | 'dockside' | 'gala' | 'pool',
+ *   lighting: 'golden' | 'sunset' | 'dusk' | 'noon',
  *   vantage: { eye: { x: number, y: number, z: number }, yaw: number, pitch: number,
  *     yawRange: number, pitchMin: number, pitchMax: number, focus: { x: number, z: number } },
  *   wind: { base: number, gust: number },
@@ -114,6 +114,40 @@ export const MISSIONS = [
       civilian: 'A guest is dead. The city wakes up to your face on every screen.'
     },
     seed: 303
+  },
+  {
+    id: 'rooftop-pool',
+    number: 6,
+    title: 'Rooftop Pool',
+    district: 'Cassian Hotel, 12:30',
+    briefing:
+      'Dario Castell carries the network\u2019s cash between its banks and its buyers. Today he is off duty at the pool bar on the roof of the Cassian Hotel: a phone call, a swim, a drink, then the lift down. You have the roof of the glass tower to the south-east, 200 to 240 metres out, with a strong wind gusting across the line. Guests, waiters and a lifeguard everywhere: one shot, only Castell.',
+    target: {
+      name: 'Dario Castell',
+      description: 'White linen shirt, light blue jeans, dark sunglasses. Talks at his lounger, takes a long call at the south railing, wades in the shallow end, has a drink at the bar, then heads for the lift house in the north-west corner.'
+    },
+    scene: 'pool',
+    lighting: 'noon',
+    vantage: { eye: { x: -160, y: 97.7, z: 262 }, yaw: 0.64, pitch: -0.17, yawRange: 0.85, pitchMin: -0.9, pitchMax: 0.3, focus: { x: -280, z: 120 } },
+    wind: { base: 5.5, gust: 3 },
+    stars: ['Eliminate the target', 'Headshot', 'One shot, no misses'],
+    intel: [
+      { at: 0, text: 'The pool deck is on the Cassian\u2019s roof, straight ahead and below you. Castell is at the loungers on the far side of the pool.' },
+      { at: 6, text: 'Castell: white linen shirt, jeans, dark sunglasses. The woman beside him is not part of the contract.' },
+      { at: 15, text: 'His phone is ringing. He takes the call at the south railing, facing you, and stands there for about twenty seconds.' },
+      { at: 30, text: 'Wind from the west, over 5 m/s and gusting. It pushes your shot to the right: hold a little left, more for a headshot.' },
+      { at: 50, text: 'He is going for a swim. In the shallow end only his head and chest are above the water.' },
+      { at: 88, text: 'Out of the pool and over to the bar on the north side. He stands at the counter with his back to you.' },
+      { at: 118, text: 'He is finishing his drink. Next he walks to the lift house in the north-west corner: once inside, he is gone.' }
+    ],
+    panicIntel: 'Shot heard. Castell is running for the lift!',
+    results: {
+      win: 'Castell is down by the pool. The network\u2019s cash stops moving today.',
+      winHead: 'One shot through the wind. Castell never reached the lift.',
+      escaped: 'Castell took the lift down and is gone. The cash moves on without him.',
+      civilian: 'A guest is dead. The hotel locks down and the contract is void.'
+    },
+    seed: 606
   }
 ];
 
