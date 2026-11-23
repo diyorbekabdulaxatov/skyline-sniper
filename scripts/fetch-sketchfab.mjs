@@ -142,6 +142,15 @@ const lines = [
 ];
 writeFileSync(join(out, 'report.md'), lines.join('\n') + '\n');
 if (process.env.GITHUB_STEP_SUMMARY) appendFileSync(process.env.GITHUB_STEP_SUMMARY, lines.join('\n') + '\n');
+// One annotation per model too: annotations of a public repo can be read without signing in.
+if (process.env.GITHUB_ACTIONS) {
+  for (const r of results) {
+    const text = r.error
+      ? `failed: ${r.error}`
+      : `${r.title} by ${r.author} (${r.licence}): ${r.tris} triangles, ${r.meshes} meshes, ${r.materials} materials, ${r.textures} textures, ${r.sourceMB} MB -> ${r.outMB} MB`;
+    console.log(`::notice title=${r.name}::${text.replace(/[\r\n%]/g, ' ')}`);
+  }
+}
 console.log(lines.join('\n'));
 
 if (results.every((r) => r.error)) {
