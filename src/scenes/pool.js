@@ -527,16 +527,13 @@ export async function poolDress(scene) {
     box(mats.canvas, L2.x + 0.2, y + 0.4, L2.z - 1.1, L2.x + 0.45, y + 0.85, L2.z + 1.1);
     box(mats.wood, L2.x - 1.8, y, L2.z - 0.6, L2.x - 0.9, y + 0.4, L2.z + 0.6);
   }
-  // Planters: the two tallest plants of the Sketchfab pack, or pots with leafy crowns.
-  const plantParts = plantsPack ? [...plantsPack.parts.values()]
-    .map((part) => ({ part, size: partSize(part) }))
-    .filter((e) => e.size.y > 0.05)
-    .sort((a, b) => b.size.y - a.size.y)
-    .slice(0, 2) : [];
+  // Planters: a tall slim grass (Pot_4) and a bushy one (Pot_12) from the Sketchfab pack, or the
+  // two tallest different plants if those names change; pots with leafy crowns without the pack.
+  const plantParts = plantsPack ? pickPlants(plantsPack.parts) : [];
   if (plantParts.length) {
     plantParts.forEach((e, k) => {
       const list = POOL.plants.filter((_, i) => i % plantParts.length === k)
-        .map(([x, z], i) => ({ x, z, y, rot: i * 1.3, s: (1.15 + ((i * 37) % 5) * 0.06) / e.size.y }));
+        .map(([x, z], i) => ({ x, z, y, rot: i * 1.3, s: (1.35 + ((i * 37) % 5) * 0.06) / e.size.y }));
       instancePart(group, e.part, list);
     });
   } else {
@@ -679,6 +676,26 @@ function alignLongAxis(baked) {
     turn.makeRotationY(Math.PI);
     for (const g of baked.values()) g.applyMatrix4(turn);
   }
+}
+
+/**
+ * Two different plants from the pack: the named ones when present, else the two tallest parts
+ * of different sizes.
+ * @param {Map<string, THREE.Object3D>} parts
+ */
+function pickPlants(parts) {
+  const all = [...parts.entries()]
+    .map(([name, part]) => ({ name, part, size: partSize(part) }))
+    .filter((e) => e.size.y > 0.05);
+  const named = ['Pot_4', 'Pot_12'].map((n) => all.find((e) => e.name === n)).filter(Boolean);
+  if (named.length === 2) return named;
+  /** @type {typeof all} */
+  const out = [];
+  for (const e of all.sort((a, b) => b.size.y - a.size.y)) {
+    if (out.every((o) => Math.abs(o.size.x - e.size.x) > 0.15 || Math.abs(o.size.y - e.size.y) > 0.15)) out.push(e);
+    if (out.length === 2) break;
+  }
+  return out;
 }
 
 /**
