@@ -40,6 +40,11 @@
       "name": "plaster",
       "id": "painted_plaster_wall",
       "res": "1k"
+    },
+    {
+      "name": "grass",
+      "id": "leafy_grass",
+      "res": "1k"
     }
   ],
   "models": [

@@ -10,6 +10,7 @@ import { galaPeople, galaDress, galaReset } from './gala.js';
 import { marketPeople, marketDress, marketOnEscape, marketReset, marketUndress } from './market.js';
 import { constructionPeople, constructionDress, constructionReset, constructionEscape } from './construction.js';
 import { poolPeople, poolDress, poolUndress } from './pool.js';
+import { parkPeople, parkDress, parkEscape, parkReset, parkUndress } from './park.js';
 import { LAYOUT } from '../city.js';
 
 /**
@@ -65,5 +66,13 @@ export const SCENES = {
     dress: (scene) => poolDress(scene),
     // The dressing hides the distant skyline boxes in its district; put them back afterwards.
     undress: () => poolUndress()
+  },
+  park: {
+    people: parkPeople,
+    dress: (scene) => parkDress(scene),
+    // Kast's sedan pulls away north once he is in it.
+    onEscape: (ctx, dt, t) => parkEscape(dt, t),
+    reset: () => parkReset(),
+    undress: () => parkUndress()
   }
 };
