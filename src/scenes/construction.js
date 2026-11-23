@@ -212,6 +212,7 @@ export function constructionPeople(kit) {
 
   /** The hoist: leaves when Darrow and his party are aboard, carries whoever is in the cage. */
   const runHoist = (dt) => {
+    /** @type {any} Darrow's current stop (route waypoints carry extra fields such as ride). */
     const tw = target.alive && target.index > 0 ? target.path[target.index - 1] : null;
     if (tw && tw.ride !== undefined && target.wait > 0 && inCage(target)) {
       atCage += dt;
@@ -230,6 +231,7 @@ export function constructionPeople(kit) {
       if (!p.alive || p.mode === 'gone' || !inCage(p)) continue;
       p.root.position.y = H.y;
       p.groundY = H.y;
+      /** @type {any} */
       const wp = p.index > 0 ? p.path[p.index - 1] : null;
       const notThere = wp && wp.ride !== undefined && Math.abs(H.y - wp.ride) > 0.01;
       if (moving || notThere) {
