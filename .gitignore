@@ -5,4 +5,6 @@ android/
 public/game-assets/
 .DS_Store
 *.log
-.claude/
+# Local Claude state (worktrees, launch.json) stays out of git; the project skills are shared.
+.claude/*
+!.claude/skills/

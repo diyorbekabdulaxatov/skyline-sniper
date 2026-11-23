@@ -35,6 +35,10 @@ A realistic 3D city sniper game (Three.js), Android first through Capacitor. Mai
 - Every `src/*.js` file starts with `// @ts-check`.
 - Missing assets must never break the game: fall back to plain materials and shapes.
 
+## Project skills
+
+`.claude/skills/` holds six skills from awesome-gamedev-agent-skills (Apache-2.0): game UI/UX, game feel, performance, and three.js scene setup, glTF loading, and materials and lighting. They target three.js r187 and other engines; `.claude/skills/README.md` lists the house rules that override them (r170, CI only).
+
 ## Commands (CI)
 
 `npm run check`, `npm run typecheck`, `npm test`, `npm run assets`, `npm run build`, `npm run android`.
