@@ -95,7 +95,21 @@ async function inventory(file) {
     };
   });
   const sb = getBounds(scene);
+  const meshes = [];
+  scene.traverse((n) => {
+    if (n.getMesh()) meshes.push({ node: n.getName(), mesh: n.getMesh().getName(), skinned: !!n.getSkin(), tris: trianglesOf(n) });
+  });
+  const animations = doc.getRoot().listAnimations().map((a) => {
+    let end = 0;
+    for (const sm of a.listSamplers()) {
+      const input = sm.getInput();
+      if (input) end = Math.max(end, input.getMax([0])[0]);
+    }
+    return { name: a.getName(), seconds: Math.round(end * 100) / 100, channels: a.listChannels().length };
+  });
   return {
+    meshes: meshes.slice(0, 60),
+    animations,
     tris: parts.reduce((s, p) => s + p.tris, 0),
     size: [r1(sb.max[0] - sb.min[0]), r1(sb.max[1] - sb.min[1]), r1(sb.max[2] - sb.min[2])],
     materials: doc.getRoot().listMaterials().length,

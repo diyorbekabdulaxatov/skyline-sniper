@@ -36,6 +36,12 @@
       "uid": "94e21059f00c4e989c6403ada034516e",
       "texture": 512,
       "use": "Forklift by Breg's container at Dockside"
+    },
+    {
+      "name": "fps_arms_sniper",
+      "uid": "b48999a250b2433da59f705c371a49b2",
+      "texture": 1024,
+      "use": "First-person gloved hands holding a sniper rifle"
     }
   ]
 }

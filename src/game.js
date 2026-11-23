@@ -12,6 +12,7 @@ import { buildCity, LAYOUT } from './city.js';
 import { createCrowd } from './people.js';
 import { MISSIONS, missionById } from './missions.js';
 import { SCENES } from './scenes/index.js';
+import { loadFpsArms } from './fps-arms.js';
 
 const BASE_FOV = 55;
 const SCOPE_REF_FOV = 28;
@@ -129,6 +130,8 @@ export async function createGame(opts) {
   let eye = mission.vantage.eye;
   camera.position.set(eye.x, eye.y, eye.z);
   scene.add(camera);
+  /** @type {Awaited<ReturnType<typeof loadFpsArms>>} */
+  let viewArms = null;
   const rifleView = await makeRifleView();
   camera.add(rifleView);
 
@@ -768,6 +771,12 @@ export async function createGame(opts) {
     const holder = new THREE.Group();
     holder.position.set(0.17, -0.2, -0.36);
     holder.rotation.y = 0.03;
+    // Gloved hands holding the rifle (Sketchfab, test-only) when present; else the bare rifle.
+    viewArms = await loadFpsArms();
+    if (viewArms) {
+      holder.add(viewArms.root);
+      return holder;
+    }
     const rifleModel = await loadFittedRifle(0.95);
     if (rifleModel) {
       rifleModel.position.z = -0.3;
@@ -893,6 +902,10 @@ export async function createGame(opts) {
         s.recoil = 0;
       },
       /** Aims at the target's chest, leading him and holding over for drop and wind. */
+      /** The first-person view model, for tuning its placement in the browser. */
+      viewModel() {
+        return { holder: rifleView, arms: viewArms };
+      },
       solveTarget(part) {
         const t = crowd.target;
         const y = t.root.position.y + (part === 'head' ? 0.935 : 0.68) * t.h;
