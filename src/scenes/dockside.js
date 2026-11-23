@@ -8,6 +8,7 @@
 // and the apron by the ship, which the warehouse roof at (119, 19.7, -100) can see.
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+import { loadGLTF, placeProp } from '../assets.js';
 
 /** Pier deck height and the ship's deck. */
 const PIER_Y = 0;
@@ -190,9 +191,19 @@ export function docksidePeople(kit) {
 /**
  * Set dressing: the open container with cash cases, Breg's van, the ship's gangway, quay lamps,
  * forklifts and pallets. Repeated parts are merged by material, so it costs a dozen draw calls.
+ * Async because it waits for the optional Sketchfab forklift model.
  * @param {THREE.Scene} scene
  */
-export function docksideDress(scene) {
+export async function docksideDress(scene) {
+  // The Sketchfab forklift (test-only, see sketchfab.json) replaces the box forklift when present.
+  /** @type {THREE.Object3D | null} */
+  const forkliftModel = await loadGLTF('./game-assets/sketchfab/forklift.glb').then((g) => {
+    g.scene.traverse((o) => {
+      const m = /** @type {any} */ (o);
+      if (m.isMesh) m.castShadow = m.receiveShadow = true;
+    });
+    return g.scene;
+  }).catch(() => null);
   const group = new THREE.Group();
   group.name = 'dockside-dressing';
   /** @type {number[][]} */
@@ -293,6 +304,14 @@ export function docksideDress(scene) {
 
   // ---------- forklifts and pallets ----------
   const forklift = (x, z, rotY) => {
+    if (forkliftModel) {
+      const obj = placeProp(group, forkliftModel, x, 0, z, rotY, 3.4);
+      if (obj) obj.traverse((o) => {
+        if (/** @type {any} */ (o).isMesh) rangeMeshes.push(o);
+      });
+      solid(x - 1.2, 0, z - 1.4, x + 1.2, 2.1, z + 1.4);
+      return;
+    }
     const c = Math.cos(rotY);
     const s = Math.sin(rotY);
     const at = (lx, lz) => [x + lx * c + lz * s, z - lx * s + lz * c];

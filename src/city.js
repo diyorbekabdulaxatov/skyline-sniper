@@ -9,6 +9,7 @@ import { loadGroundMaterial, loadProp, placeProp, loadGLTF } from './assets.js';
 import { bakeByMaterial, normalise, instanced, place } from './instancing.js';
 import { createDecor } from './blocks.js';
 import { buildHarbor, HARBOR } from './harbor.js';
+import { loadPack, fitScale, partSize, placePart, solidOf, instancePart } from './sketchfab.js';
 
 /** Fixed layout the people and mission code also use. */
 export const LAYOUT = {
@@ -66,6 +67,19 @@ const BLOCKS = [
   [102, -150, 34, 46, 18, 'brick_red', 'sw']
 ];
 
+/**
+ * Realistic Sketchfab buildings (downtown_towers pack) that replace procedural ones by index when
+ * the pack is present. Scaled uniformly to fit the footprint; colliders follow the model.
+ * The Gala block (BLOCKS[8]) and the buildings behind the player stay procedural.
+ */
+const TOWER_MODELS = { 4: 'Downtown_ModernOffice_1_B', 5: 'Downtown_Flatiron_1', 6: 'Downtown_ModernOffice_5', 7: 'Downtown_ModernOffice_4', 9: 'Downtown_ArtDeco_1' };
+const BLOCK_MODELS = {
+  1: 'Downtown_Residential_3', 2: 'Downtown_Mall_1', 3: 'Downtown_PublicBuilding_1', 4: 'Downtown_Brutal_1',
+  5: 'Downtown_Residential_4', 6: 'Downtown_Residential_2', 7: 'Downtown_ClassicOffice_1', 9: 'Downtown_BrownstoneOffice_1'
+};
+/** Meridian Tower (TOWERS[6]) keeps its front face on the target's door line. */
+const MERIDIAN_FRONT_Z = -127;
+
 /** Plaster tints so neighbouring plaster blocks differ. */
 const PLASTER_TINTS = ['#f1e6d2', '#e8cfa8', '#d9e0e3', '#efd9c8'];
 
@@ -79,6 +93,33 @@ export async function buildCity(scene, manifest) {
   const colliders = [];
   /** Meshes the rangefinder measures to. */
   const rangeMeshes = [];
+
+  /** Objects the game hides when a contract's vantage cannot see them (see game.js). */
+  const cullables = [];
+  const [downtown, props1, props2, containerPack] = await Promise.all(['downtown_towers', 'city_props_1', 'city_props_2', 'containers_textured'].map(loadPack));
+  /**
+   * Places a Sketchfab building in a footprint slot; returns false when the part is missing.
+   * @param {string} name @param {number} x @param {number} z @param {number} w @param {number} d
+   * @param {number | null} frontZ keep the south face on this line
+   */
+  const modelBuilding = (name, x, z, w, d, frontZ) => {
+    const part = downtown && downtown.parts.get(name);
+    if (!part) return false;
+    const fit = fitScale(part, w, d);
+    let cz = z;
+    if (frontZ !== null) {
+      const size = partSize(part);
+      cz = frontZ - ((fit.rot ? size.x : size.z) * fit.s) / 2;
+    }
+    const obj = placePart(scene, part, { x, z: cz, rot: fit.rot, s: fit.s });
+    const solid = solidOf(obj);
+    colliders.push(solid.box);
+    rangeMeshes.push(...solid.meshes);
+    cullables.push(obj);
+    return true;
+  };
+  /** Which procedural buildings were replaced, so their decor and billboards are skipped. */
+  const replacedBlocks = new Set();
 
   const [asphalt, sidewalk, roof, plazaTiles, brickRed, brickOld, plaster] = await Promise.all([
     loadGroundMaterial(manifest, 'asphalt', 6),
@@ -143,7 +184,8 @@ export async function buildCity(scene, manifest) {
 
   // ---------- buildings ----------
   const decor = createDecor(r);
-  for (const [x, z, w, d, h, style] of TOWERS) {
+  for (const [i, [x, z, w, d, h, style]] of TOWERS.entries()) {
+    if (TOWER_MODELS[i] && modelBuilding(TOWER_MODELS[i], x, z, w, d, i === 6 ? MERIDIAN_FRONT_Z : null)) continue;
     const facade = facadeMaterial(style);
     const mesh = new THREE.Mesh(buildingGeometry(w, h, d), [facade, facade, mats.roof, mats.roof, facade, facade]);
     mesh.position.set(x, h / 2, z);
@@ -151,13 +193,18 @@ export async function buildCity(scene, manifest) {
     mesh.receiveShadow = true;
     scene.add(mesh);
     rangeMeshes.push(mesh);
+    cullables.push(mesh);
     colliders.push([x - w / 2, 0, z - d / 2, x + w / 2, h, z + d / 2]);
     // Our own roof gets hand-placed props instead; the tallest towers stay clean.
     const isOurs = x === 0 && z === 12;
     if (h < 140 && !isOurs) decor.roof(x, z, w, d, h, { antenna: h > 80 });
   }
   let tint = 0;
-  for (const [x, z, w, d, h, wall, shopFaces] of BLOCKS) {
+  for (const [i, [x, z, w, d, h, wall, shopFaces]] of BLOCKS.entries()) {
+    if (BLOCK_MODELS[i] && modelBuilding(BLOCK_MODELS[i], x, z, w, d, null)) {
+      replacedBlocks.add(i);
+      continue;
+    }
     let mat = walls[wall];
     if (wall === 'plaster') {
       mat = mat.clone();
@@ -169,16 +216,20 @@ export async function buildCity(scene, manifest) {
     mesh.receiveShadow = true;
     scene.add(mesh);
     rangeMeshes.push(mesh);
+    cullables.push(mesh);
     colliders.push([x - w / 2, 0, z - d / 2, x + w / 2, h, z + d / 2]);
     // A cornice at the roof line.
     const cornice = new THREE.Mesh(new THREE.BoxGeometry(w + 0.6, 0.5, d + 0.6), mats.curb);
     cornice.position.set(x, h - 0.25, z);
     cornice.castShadow = true;
     scene.add(cornice);
+    cullables.push(cornice);
     decor.block({ x, z, w, d, h, shopFaces });
   }
   // Billboards on low roofs, turned toward the player's rooftop.
-  for (const [x, z, h] of [[74, -70, 20], [-42, -155, 28], [58, -158, 26], [-78, -52, 22], [108, -92, 18]]) {
+  // (The last number is the BLOCKS index the billboard stands on; replaced blocks get none.)
+  for (const [x, z, h, block] of [[74, -70, 20, 3], [-42, -155, 28, 7], [58, -158, 26, 8], [-78, -52, 22, 1], [108, -92, 18, 6]]) {
+    if (replacedBlocks.has(block)) continue;
     decor.billboard(x, h + 0.9, z, Math.atan2(LAYOUT.eye.x - x, LAYOUT.eye.z - z));
   }
 
@@ -195,7 +246,7 @@ export async function buildCity(scene, manifest) {
   addBox(scene, parapet, [14.8, ry + 0.42, 12], [0.4, 0.84, 28], colliders, null, true);
 
   // ---------- harbour and skyline ----------
-  const harbor = buildHarbor(scene, { concrete: mats.roof }, colliders, rangeMeshes, slab);
+  const harbor = buildHarbor(scene, { concrete: mats.roof }, colliders, rangeMeshes, slab, containerPack);
   skyline(scene, r);
 
   // ---------- plaza furniture ----------
@@ -214,10 +265,11 @@ export async function buildCity(scene, manifest) {
   column.castShadow = true;
   scene.add(column);
 
-  for (let x = -40; x <= 40; x += 20) {
-    lamp(scene, mats.metal, x, -24.5);
-    lamp(scene, mats.metal, x, -105.5);
-  }
+  const lampSpots = [];
+  for (let x = -40; x <= 40; x += 20) lampSpots.push({ x, z: -24.5 }, { x, z: -105.5 });
+  const lampPart = props1 && props1.parts.get('Light');
+  if (lampPart) instancePart(scene, lampPart, lampSpots.map((p) => ({ ...p, y: walk, s: 1.25 })));
+  else for (const p of lampSpots) lamp(scene, mats.metal, p.x, p.z);
 
   // ---------- models: Poly Haven props, trees, traffic lights, cars ----------
   const [aircon, airduct, utility, barrier, hydrant, seating, covered, treeGltf, lightGltf, carGltf] = await Promise.all([
@@ -234,9 +286,19 @@ export async function buildCity(scene, manifest) {
     const bx = f.x + Math.cos(a) * 11;
     const bz = f.z + Math.sin(a) * 11;
     benches.push({ x: bx, z: bz, face: Math.atan2(f.x - bx, f.z - bz) });
+    if (props1 && props1.parts.get('ParkBenchLong')) continue;
     if (seating) placeProp(scene, seating, bx, walk, bz, Math.atan2(f.x - bx, f.z - bz) + Math.PI / 2, 2.2);
     else addBox(scene, mats.trunk, [bx, walk + 0.25, bz], [1.8, 0.5, 0.6], null, null, true);
   }
+  // Realistic street furniture from the Sketchfab props packs, one instanced set per kind.
+  const prop = (pack, name) => pack && pack.parts.get(name);
+  instancePart(scene, prop(props1, 'ParkBenchLong'), benches.map((b) => ({ x: b.x, z: b.z, y: walk, rot: b.face + Math.PI / 2 })));
+  instancePart(scene, prop(props1, 'TrashCanLarge'), [[-36, -22.8], [14, -22.8], [52, -22.8], [-14, -104.7], [36, -104.7], [-52, -104.7]].map(([x, z]) => ({ x, z, y: walk })));
+  instancePart(scene, prop(props1, 'ParkingMeter'), [70, 78, 86, 94, -70, -78, -86].map((x) => ({ x, z: -22.6, y: walk, rot: Math.PI })));
+  instancePart(scene, prop(props1, 'PostBox'), [{ x: -44, z: -105.6, y: walk }, { x: 60, z: -24.4, y: walk, rot: Math.PI }]);
+  instancePart(scene, prop(props2, 'planter_pot'), [[-42, -29], [42, -29], [-42, -101], [42, -101], [-20, -101], [20, -101]].map(([x, z]) => ({ x, z, y: walk })));
+  instancePart(scene, prop(props2, 'clock'), [{ x: -20, z: -29.5, y: walk }]);
+  instancePart(scene, prop(props2, 'information'), [{ x: 20, z: -29.5, y: walk, rot: Math.PI }]);
   for (const x of [-32, -20, 20, 32]) placeProp(scene, barrier, x, walk, -103.2, 0, 2.2);
   placeProp(scene, hydrant, -43, walk, -24.5, 0, 0.45);
   placeProp(scene, hydrant, 43, walk, -106, 0, 0.45);
@@ -286,6 +348,7 @@ export async function buildCity(scene, manifest) {
   return {
     colliders,
     rangeMeshes,
+    cullables,
     benches,
     /** Box colliders of the moving cars, refreshed every frame. */
     carColliders: traffic.colliders,

@@ -72,6 +72,39 @@ export async function createGame(opts) {
   /** @type {any} Which scene's dressing is in the world now, so it can tidy up when replaced. */
   let dressedScene = null;
   await dressFor(mission);
+  showOnlyVisible(mission);
+
+  /**
+   * Hides the city's buildings that the contract's vantage can never see, so the phone does not
+   * draw them: anything outside the widest view the player can turn to (yaw range plus half the
+   * horizontal field of view at a wide phone aspect), except what stands close to the shooter.
+   * The bullet cam and kill cam look the same way as the shooter, so they see the same set.
+   * @param {import('./missions.js').Mission} m
+   */
+  function showOnlyVisible(m) {
+    const v = m.vantage;
+    const halfH = Math.atan(Math.tan(THREE.MathUtils.degToRad(BASE_FOV) / 2) * 2.4);
+    const reach = v.yawRange + halfH + 0.12;
+    let hidden = 0;
+    for (const obj of city.cullables) {
+      if (!obj.userData.cullSphere) {
+        obj.userData.cullSphere = new THREE.Box3().setFromObject(obj).getBoundingSphere(new THREE.Sphere());
+      }
+      const sph = obj.userData.cullSphere;
+      const dx = sph.center.x - v.eye.x;
+      const dz = sph.center.z - v.eye.z;
+      const dist = Math.hypot(dx, dz);
+      let show = true;
+      if (dist > sph.radius + 25) {
+        const dir = Math.atan2(-dx, -dz);
+        const diff = Math.abs(THREE.MathUtils.euclideanModulo(dir - v.yaw + Math.PI, Math.PI * 2) - Math.PI);
+        show = diff - Math.asin(Math.min(1, sph.radius / dist)) < reach;
+      }
+      obj.visible = show;
+      if (!show) hidden++;
+    }
+    console.info('View cone for ' + m.id + ': ' + hidden + ' of ' + city.cullables.length + ' buildings hidden.');
+  }
 
   async function dressFor(m) {
     if (dressing.group) scene.remove(dressing.group);
@@ -758,6 +791,7 @@ export async function createGame(opts) {
     crowd = await createCrowd(scene, SCENES[mission.scene].people, mission.vantage.eye, mission.seed);
     eye = mission.vantage.eye;
     if (changed || !dressing.group) await dressFor(mission);
+    if (changed) showOnlyVisible(mission);
     lighting.setPreset(mission.lighting, mission.vantage.focus);
     for (const def of Object.values(SCENES)) if (def.reset) def.reset({ city });
     s = freshState();

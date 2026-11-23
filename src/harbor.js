@@ -4,6 +4,7 @@
 // Everything repeated is instanced; the whole harbour costs a few dozen draw calls.
 import * as THREE from 'three';
 import { rng } from './facades.js';
+import { bakeByMaterial, instanced, place } from './instancing.js';
 
 /** Waterfront geometry shared with city.js. */
 export const HARBOR = {
@@ -24,7 +25,7 @@ const CONTAINER_COLORS = ['#8e3b2b', '#2f5d8a', '#3f6b45', '#d9d4c8', '#7b7f84',
  * @param {(w: number, d: number, h: number, mat: THREE.Material, x: number, z: number, y: number) => THREE.Mesh} slab
  *   makes a box with world-metre UVs (from city.js)
  */
-export function buildHarbor(scene, mats, colliders, rangeMeshes, slab) {
+export function buildHarbor(scene, mats, colliders, rangeMeshes, slab, containerPack = null) {
   const r = rng(404);
   const H = HARBOR;
 
@@ -93,24 +94,27 @@ export function buildHarbor(scene, mats, colliders, rangeMeshes, slab) {
       for (let k = 0; k < stack; k++) boxes.push({ x, y: ship.deck + k * CONTAINER.h, z });
     }
   }
-  const containerGeo = new THREE.BoxGeometry(CONTAINER.w, CONTAINER.h, CONTAINER.l);
-  containerGeo.translate(0, CONTAINER.h / 2, 0);
-  const containers = new THREE.InstancedMesh(
-    containerGeo,
-    new THREE.MeshStandardMaterial({ map: ribTexture(), roughness: 0.7, metalness: 0.25 }),
-    boxes.length
-  );
-  const m = new THREE.Matrix4();
-  const c = new THREE.Color();
-  boxes.forEach((b, i) => {
-    m.makeTranslation(b.x, b.y, b.z);
-    containers.setMatrixAt(i, m);
-    containers.setColorAt(i, c.set(CONTAINER_COLORS[Math.floor(r() * CONTAINER_COLORS.length)]));
-  });
-  containers.castShadow = true;
-  containers.receiveShadow = true;
-  containers.computeBoundingSphere();
-  scene.add(containers);
+  const textured = containerPack && texturedContainers(scene, containerPack, boxes, r);
+  if (!textured) {
+    const containerGeo = new THREE.BoxGeometry(CONTAINER.w, CONTAINER.h, CONTAINER.l);
+    containerGeo.translate(0, CONTAINER.h / 2, 0);
+    const containers = new THREE.InstancedMesh(
+      containerGeo,
+      new THREE.MeshStandardMaterial({ map: ribTexture(), roughness: 0.7, metalness: 0.25 }),
+      boxes.length
+    );
+    const m = new THREE.Matrix4();
+    const c = new THREE.Color();
+    boxes.forEach((b, i) => {
+      m.makeTranslation(b.x, b.y, b.z);
+      containers.setMatrixAt(i, m);
+      containers.setColorAt(i, c.set(CONTAINER_COLORS[Math.floor(r() * CONTAINER_COLORS.length)]));
+    });
+    containers.castShadow = true;
+    containers.receiveShadow = true;
+    containers.computeBoundingSphere();
+    scene.add(containers);
+  }
   colliders.push([p.x0 + 6, 0, p.z0 + 10, p.x1 - 40, 11, p.z1 - 14]);
 
   // ---------- gantry cranes over the pier edge ----------
@@ -253,6 +257,56 @@ function smallBoat(color) {
     g.add(o);
   }
   return g;
+}
+
+/**
+ * Photo-textured containers from the Sketchfab "containers_textured" pack (test-only), one
+ * InstancedMesh per variant and material. Each variant is turned so its long axis runs along z
+ * and sized to a real container; 20 ft variants go two to a 40 ft slot. Returns false when the
+ * pack holds nothing container-shaped, so the plain boxes are used instead.
+ * @param {THREE.Scene} scene
+ * @param {{ parts: Map<string, THREE.Object3D> }} pack
+ * @param {{ x: number, y: number, z: number }[]} boxes
+ * @param {() => number} r
+ */
+function texturedContainers(scene, pack, boxes, r) {
+  const variants = [];
+  for (const part of pack.parts.values()) {
+    part.updateMatrixWorld(true);
+    const baked = bakeByMaterial(part);
+    const box = new THREE.Box3();
+    for (const g of baked.values()) {
+      g.computeBoundingBox();
+      box.union(g.boundingBox);
+    }
+    if (box.isEmpty()) continue;
+    const s = box.getSize(new THREE.Vector3());
+    const long = Math.max(s.x, s.z);
+    const across = Math.min(s.x, s.z);
+    if (long < 1.8 * s.y || across > 1.6 * s.y) continue;
+    const short = long / s.y < 3.6;
+    const len = short ? 6.06 : CONTAINER.l;
+    const c = box.getCenter(new THREE.Vector3());
+    const m = new THREE.Matrix4().makeScale(CONTAINER.w / across, CONTAINER.h / s.y, len / long);
+    if (s.x > s.z) m.multiply(new THREE.Matrix4().makeRotationY(Math.PI / 2));
+    m.multiply(new THREE.Matrix4().makeTranslation(-c.x, -box.min.y, -c.z));
+    for (const g of baked.values()) g.applyMatrix4(m);
+    variants.push({ baked, short, spots: [] });
+  }
+  if (!variants.length) return false;
+  for (const b of boxes) {
+    const v = variants[Math.floor(r() * variants.length)];
+    if (v.short) v.spots.push({ ...b, z: b.z - 3.07 }, { ...b, z: b.z + 3.07 });
+    else v.spots.push(b);
+  }
+  for (const v of variants) {
+    if (!v.spots.length) continue;
+    const set = instanced(v.baked, v.spots.length);
+    v.spots.forEach((p, i) => set.set(i, place(p.x, p.y, p.z, r() < 0.5 ? 0 : Math.PI, 1)));
+    set.finish();
+    scene.add(set.group);
+  }
+  return true;
 }
 
 /** Container side ribs: light and dark vertical stripes, tinted by the instance colour. */

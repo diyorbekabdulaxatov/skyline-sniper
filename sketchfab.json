@@ -1,12 +1,41 @@
 {
-  "note": "Test-only Sketchfab models, fetched and shrunk in CI by scripts/fetch-sketchfab.mjs (needs the SKETCHFAB_TOKEN secret). Not used by the game yet. Check every licence before any release.",
+  "note": "Test-only Sketchfab models, fetched and shrunk in CI by scripts/fetch-sketchfab.mjs (needs the SKETCHFAB_TOKEN secret) into public/game-assets/sketchfab/. Check every licence before any release.",
   "models": [
-    { "name": "downtown_towers", "uid": "7378e7fb9c914c39880d9913a6f4e1d6", "texture": 1024, "use": "Financial District towers" },
-    { "name": "old_nyc_building", "uid": "258cac58409b400ba4379222ebddf4f5", "texture": 1024, "use": "Brick mid-rise with shop fronts" },
-    { "name": "modern_city_block", "uid": "c80dba249d9547cbb48d00828d23cfa7", "texture": 1024, "use": "Modern apartment towers" },
-    { "name": "city_props_1", "uid": "32b8b82bb1e9489c993799c91967a916", "texture": 512, "use": "Street props: bus stop, benches, lamps, bins" },
-    { "name": "city_props_2", "uid": "2f52ea53c58e455f9b69d11f58763c96", "texture": 512, "use": "More street props" },
-    { "name": "city_road_pack", "uid": "d9df5cfa079f4da8a18ef1372c00d01c", "texture": 1024, "use": "Roads with markings and kerbs" },
-    { "name": "container_rusted", "uid": "2b787d1a02174d0bbca9eac34eb3a486", "texture": 512, "use": "Rusted shipping container for Dockside" }
+    {
+      "name": "downtown_towers",
+      "uid": "7378e7fb9c914c39880d9913a6f4e1d6",
+      "texture": 1024,
+      "use": "Financial District towers"
+    },
+    {
+      "name": "city_props_1",
+      "uid": "32b8b82bb1e9489c993799c91967a916",
+      "texture": 512,
+      "use": "Street props: bus stop, benches, lamps, bins"
+    },
+    {
+      "name": "city_props_2",
+      "uid": "2f52ea53c58e455f9b69d11f58763c96",
+      "texture": 512,
+      "use": "More street props"
+    },
+    {
+      "name": "container_rusted",
+      "uid": "2b787d1a02174d0bbca9eac34eb3a486",
+      "texture": 512,
+      "use": "Rusted shipping container for Dockside"
+    },
+    {
+      "name": "containers_textured",
+      "uid": "cc3f7136710f4905905eae1d10ac50b7",
+      "texture": 1024,
+      "use": "Photo-textured shipping containers, instanced on the pier and ship"
+    },
+    {
+      "name": "forklift",
+      "uid": "94e21059f00c4e989c6403ada034516e",
+      "texture": 512,
+      "use": "Forklift by Breg's container at Dockside"
+    }
   ]
 }
