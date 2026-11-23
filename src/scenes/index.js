@@ -7,6 +7,7 @@
 import { plazaPeople } from './plaza.js';
 import { docksidePeople, docksideDress } from './dockside.js';
 import { galaPeople, galaDress, galaReset } from './gala.js';
+import { constructionPeople, constructionDress, constructionReset, constructionEscape } from './construction.js';
 import { LAYOUT } from '../city.js';
 
 /**
@@ -41,5 +42,12 @@ export const SCENES = {
     dress: (scene) => galaDress(scene),
     // The gala hides that roof's usual clutter; put it back when another contract takes over.
     undress: () => galaReset()
+  },
+  construction: {
+    people: constructionPeople,
+    dress: (scene) => constructionDress(scene),
+    // Darrow's SUV pulls away once he is in it; it is parked again for the next attempt.
+    onEscape: (ctx, dt, t) => constructionEscape(dt, t),
+    reset: () => constructionReset()
   }
 };

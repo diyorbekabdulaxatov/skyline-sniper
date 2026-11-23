@@ -23,7 +23,10 @@ const PLAZA = new THREE.Vector3(0, 0, -70);
 const PRESETS = {
   golden: { exposure: 1.12, fog: '#c9b39e', fogDensity: 0.00085, env: 1.05, sky: 1, hemiSky: '#f3d6b8', hemiGround: '#5a4c42', hemi: 0.55, sun: '#ffc590', sunIntensity: 2.6, flare: true },
   sunset: { exposure: 1.0, fog: '#d8a07c', fogDensity: 0.0009, env: 0.95, sky: 0.95, hemiSky: '#ffcfa6', hemiGround: '#55443a', hemi: 0.62, sun: '#ff9c58', sunIntensity: 2.4, flare: true },
-  dusk: { exposure: 0.74, fog: '#2e3954', fogDensity: 0.00105, env: 0.42, sky: 0.5, hemiSky: '#7f92c8', hemiGround: '#2b2a33', hemi: 0.62, sun: '#ff9e6a', sunIntensity: 0.45, flare: false }
+  dusk: { exposure: 0.74, fog: '#2e3954', fogDensity: 0.00105, env: 0.42, sky: 0.5, hemiSky: '#7f92c8', hemiGround: '#2b2a33', hemi: 0.62, sun: '#ff9e6a', sunIntensity: 0.45, flare: false },
+  // Grey afternoon: a cloud-grey sky instead of the panorama, soft white light from above, a
+  // weak sun for faint shadows and light grey haze that swallows the far shore.
+  overcast: { exposure: 0.98, fog: '#b7bcc0', fogDensity: 0.0014, env: 0.62, sky: 1, hemiSky: '#e4e8ec', hemiGround: '#5e5c58', hemi: 1.25, sun: '#eef1f4', sunIntensity: 0.6, flare: false, clouds: true }
 };
 
 /**
@@ -58,6 +61,10 @@ export async function setupLighting(scene, renderer, manifest) {
   }
   pmrem.dispose();
   scene.environmentIntensity = 1.05;
+  /** The panorama (or plain colour) the clear-sky presets show; overcast swaps in grey cloud. */
+  const clearSky = scene.background;
+  /** @type {THREE.Texture | null} */
+  let cloudSky = null;
 
   const hemi = new THREE.HemisphereLight('#f3d6b8', '#5a4c42', 0.55);
   scene.add(hemi);
@@ -92,16 +99,23 @@ export async function setupLighting(scene, renderer, manifest) {
   /**
    * Time-of-day presets: the same sky panorama, tinted and dimmed. `focus` moves the shadow
    * camera to where the contract happens (the shadow map only covers 300 x 300 m).
-   * @param {string} name 'golden' | 'sunset' | 'dusk'
+   * @param {string} name 'golden' | 'sunset' | 'dusk' | 'overcast'
    * @param {{ x: number, z: number }} [focus]
    */
   function setPreset(name, focus) {
+    /** @type {any} */
     const p = PRESETS[name] || PRESETS.golden;
     renderer.toneMappingExposure = p.exposure;
     /** @type {THREE.FogExp2} */ (scene.fog).color.set(p.fog);
     /** @type {THREE.FogExp2} */ (scene.fog).density = p.fogDensity;
     scene.environmentIntensity = p.env;
     scene.backgroundIntensity = p.sky;
+    if (p.clouds) {
+      if (!cloudSky) cloudSky = overcastSky();
+      scene.background = cloudSky;
+    } else {
+      scene.background = clearSky;
+    }
     hemi.color.set(p.hemiSky);
     hemi.groundColor.set(p.hemiGround);
     hemi.intensity = p.hemi;
@@ -151,6 +165,29 @@ function findSun(tex) {
   const lat = (v - 0.5) * Math.PI;
   const phi = (u - 0.5) * Math.PI * 2;
   return new THREE.Vector3(Math.cos(phi) * Math.cos(lat), Math.sin(lat), Math.sin(phi) * Math.cos(lat));
+}
+
+/**
+ * A flat overcast sky as an equirectangular texture: a darker grey overhead fading to a pale,
+ * hazy horizon (matching the overcast fog), and a dull grey below it.
+ */
+function overcastSky() {
+  const c = document.createElement('canvas');
+  c.width = 4;
+  c.height = 256;
+  const g = c.getContext('2d');
+  const grad = g.createLinearGradient(0, 0, 0, 256);
+  grad.addColorStop(0, '#8f979f');
+  grad.addColorStop(0.3, '#a9b0b6');
+  grad.addColorStop(0.47, '#c2c7ca');
+  grad.addColorStop(0.5, '#b9bec1');
+  grad.addColorStop(1, '#8e9295');
+  g.fillStyle = grad;
+  g.fillRect(0, 0, 4, 256);
+  const t = new THREE.CanvasTexture(c);
+  t.mapping = THREE.EquirectangularReflectionMapping;
+  t.colorSpace = THREE.SRGBColorSpace;
+  return t;
 }
 
 /** Procedural flare textures: a soft glow, a ring and a hexagon ghost. */
