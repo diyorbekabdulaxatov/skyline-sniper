@@ -42,6 +42,42 @@
       "uid": "b48999a250b2433da59f705c371a49b2",
       "texture": 1024,
       "use": "First-person gloved hands holding a sniper rifle"
+    },
+    {
+      "name": "park_trees",
+      "uid": "6fad6d1b2d7e4b2187ea6e6a721606ff",
+      "texture": 1024,
+      "use": "Park Run: two broadleaf trees (Sereib, CC BY), instanced over the lawns"
+    },
+    {
+      "name": "kiosk",
+      "uid": "a04e69a838054f7cb39a635943ab9b0d",
+      "texture": 512,
+      "use": "Park Run: the kiosk on the lawn"
+    },
+    {
+      "name": "pullup_bar",
+      "uid": "f5b6dc0cd95d4430886ece65096d6f11",
+      "texture": 512,
+      "use": "Park Run: the fitness bar where the target stops to stretch"
+    },
+    {
+      "name": "drinking_fountain",
+      "uid": "383b49d7f1db4f6bbf22ac97ea72cb6d",
+      "texture": 512,
+      "use": "Park Run: drinking fountain at the fitness corner"
+    },
+    {
+      "name": "bicycle",
+      "uid": "da6507928c0c4a5c8776008cdb9f747e",
+      "texture": 512,
+      "use": "Park Run: cyclists and parked bikes"
+    },
+    {
+      "name": "dog_retriever",
+      "uid": "996d7f56b3e64a4cbeca0434b5811632",
+      "texture": 512,
+      "use": "Park Run: dogs walked through the park (animated)"
     }
   ]
 }
