@@ -1,0 +1,73 @@
+{
+  "sky": "sky.hdr",
+  "textures": {
+    "asphalt": {
+      "map": "tex_asphalt_map.jpg",
+      "normal": "tex_asphalt_normal.jpg",
+      "arm": "tex_asphalt_arm.jpg"
+    },
+    "sidewalk": {
+      "map": "tex_sidewalk_map.jpg",
+      "normal": "tex_sidewalk_normal.jpg",
+      "arm": "tex_sidewalk_arm.jpg"
+    },
+    "roof": {
+      "map": "tex_roof_map.jpg",
+      "normal": "tex_roof_normal.jpg",
+      "arm": "tex_roof_arm.jpg"
+    },
+    "plaza": {
+      "map": "tex_plaza_map.jpg",
+      "normal": "tex_plaza_normal.jpg",
+      "arm": "tex_plaza_arm.jpg"
+    },
+    "brick_red": {
+      "map": "tex_brick_red_map.jpg",
+      "normal": "tex_brick_red_normal.jpg",
+      "arm": "tex_brick_red_arm.jpg"
+    },
+    "brick_old": {
+      "map": "tex_brick_old_map.jpg",
+      "normal": "tex_brick_old_normal.jpg",
+      "arm": "tex_brick_old_arm.jpg"
+    },
+    "plaster": {
+      "map": "tex_plaster_map.jpg",
+      "normal": "tex_plaster_normal.jpg",
+      "arm": "tex_plaster_arm.jpg"
+    }
+  },
+  "models": {
+    "aircon": "aircon.glb",
+    "airduct": "airduct.glb",
+    "utility_box": "utility_box.glb",
+    "barrier": "barrier.glb",
+    "hydrant": "hydrant.glb",
+    "seating": "seating.glb",
+    "covered_car": "covered_car.glb"
+  },
+  "credits": [
+    "kloppenheim_06_puresky",
+    "asphalt_02",
+    "pavement_02",
+    "concrete_floor_worn_001",
+    "large_floor_tiles_02",
+    "red_brick_03",
+    "brick_wall_006",
+    "painted_plaster_wall",
+    "exterior_aircon_unit",
+    "modular_airduct_rectangular_01",
+    "utility_box_02",
+    "concrete_road_barrier",
+    "fire_hydrant",
+    "modular_street_seating",
+    "covered_car"
+  ],
+  "bullet": {
+    "fbx": "bullet/bullet.fbx",
+    "map": "bullet/basecolor.jpg",
+    "normal": "bullet/normal.jpg",
+    "roughness": "bullet/roughness.jpg",
+    "metalness": "bullet/metallic.jpg"
+  }
+}
