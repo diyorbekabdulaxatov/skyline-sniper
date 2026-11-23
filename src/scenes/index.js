@@ -9,6 +9,7 @@ import { docksidePeople, docksideDress } from './dockside.js';
 import { galaPeople, galaDress, galaReset } from './gala.js';
 import { marketPeople, marketDress, marketOnEscape, marketReset, marketUndress } from './market.js';
 import { constructionPeople, constructionDress, constructionReset, constructionEscape } from './construction.js';
+import { poolPeople, poolDress, poolUndress } from './pool.js';
 import { LAYOUT } from '../city.js';
 
 /**
@@ -58,5 +59,11 @@ export const SCENES = {
     // Darrow's SUV pulls away once he is in it; it is parked again for the next attempt.
     onEscape: (ctx, dt, t) => constructionEscape(dt, t),
     reset: () => constructionReset()
+  },
+  pool: {
+    people: poolPeople,
+    dress: (scene) => poolDress(scene),
+    // The dressing hides the distant skyline boxes in its district; put them back afterwards.
+    undress: () => poolUndress()
   }
 };

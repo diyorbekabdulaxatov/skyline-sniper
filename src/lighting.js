@@ -34,7 +34,10 @@ const PRESETS = {
   dusk: { exposure: 0.74, fog: '#2e3954', fogDensity: 0.00105, env: 0.42, sky: 0.5, hemiSky: '#7f92c8', hemiGround: '#2b2a33', hemi: 0.62, sun: '#ff9e6a', sunIntensity: 0.45, flare: false },
   // Grey afternoon: a cloud-grey sky instead of the panorama, soft white light from above, a
   // weak sun for faint shadows and light grey haze that swallows the far shore.
-  overcast: { exposure: 0.98, fog: '#b7bcc0', fogDensity: 0.0014, env: 0.62, sky: 1, hemiSky: '#e4e8ec', hemiGround: '#5e5c58', hemi: 1.25, sun: '#eef1f4', sunIntensity: 0.6, flare: false, clouds: true }
+  overcast: { exposure: 0.98, fog: '#b7bcc0', fogDensity: 0.0014, env: 0.62, sky: 1, hemiSky: '#e4e8ec', hemiGround: '#5e5c58', hemi: 1.25, sun: '#eef1f4', sunIntensity: 0.6, flare: false, clouds: true },
+  // Midday: a high white sun (the shadow light is raised to `elevation` radians on the sky sun's
+  // azimuth), bright sky, short shadows and a clear, slightly blue haze.
+  noon: { exposure: 1.02, fog: '#b9c7d6', fogDensity: 0.00062, env: 1.2, sky: 1.15, hemiSky: '#eaf1fb', hemiGround: '#6d675f', hemi: 0.72, sun: '#fff5e6', sunIntensity: 3.2, flare: true, elevation: 1.05 }
 };
 
 /**
@@ -111,7 +114,7 @@ export async function setupLighting(scene, renderer, manifest) {
   /**
    * Time-of-day presets: the same sky panorama, tinted and dimmed. `focus` moves the shadow
    * camera to where the contract happens (the shadow map only covers 300 x 300 m).
-   * @param {string} name 'golden' | 'sunset' | 'dusk' | 'morning' | 'overcast'
+   * @param {string} name 'golden' | 'sunset' | 'dusk' | 'morning' | 'overcast' | 'noon'
    * @param {{ x: number, z: number }} [focus]
    */
   function setPreset(name, focus) {
@@ -137,7 +140,16 @@ export async function setupLighting(scene, renderer, manifest) {
     aimLight(Math.max(MIN_LIGHT_ELEVATION, p.minElevation || 0));
     const f = focus || { x: PLAZA.x, z: PLAZA.z };
     sun.target.position.set(f.x, 0, f.z);
-    sun.position.copy(sun.target.position).addScaledVector(lightDir, 320);
+    let dir = lightDir;
+    if (p.elevation) {
+      const flat = Math.hypot(lightDir.x, lightDir.z) || 1;
+      dir = new THREE.Vector3(
+        (lightDir.x / flat) * Math.cos(p.elevation),
+        Math.sin(p.elevation),
+        (lightDir.z / flat) * Math.cos(p.elevation)
+      );
+    }
+    sun.position.copy(sun.target.position).addScaledVector(dir, 320);
     sun.target.updateMatrixWorld();
   }
   setPreset('golden');
