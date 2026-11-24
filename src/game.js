@@ -152,8 +152,9 @@ export async function createGame(opts) {
   const trail = makeTrail(scene);
   const puffs = makePuffs(scene);
 
-  const rifle = KESTREL;
-  const zero = zeroAngle(rifle);
+  /** The equipped rifle: KESTREL with the loadout's overrides (set by setLoadout). */
+  let rifle = KESTREL;
+  let zero = zeroAngle(rifle);
   const raycaster = new THREE.Raycaster();
   const center = new THREE.Vector2(0, 0);
   const tmpDir = new THREE.Vector3();
@@ -836,9 +837,12 @@ export async function createGame(opts) {
     async toMenu() {
       await resetContract();
     },
-    /** @param {{ maxZoom: number, swayMul: number, breathTime: number, boltMul: number }} next */
+    /** @param {{ maxZoom: number, swayMul: number, breathTime: number, boltMul: number, rifle?: object }} next */
     setLoadout(next) {
       loadout = next;
+      rifle = { ...KESTREL, ...(next.rifle || {}) };
+      zero = zeroAngle(rifle);
+      if (s.mode !== 'playing') s.ammo = rifle.magazine;
       s.zoom = Math.min(s.zoom, loadout.maxZoom);
       hud.zoomRange(loadout.maxZoom);
     },

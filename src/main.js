@@ -7,13 +7,13 @@ import { createGame } from './game.js';
 import { renderPortrait } from './people.js';
 import { MISSIONS, missionById } from './missions.js';
 import { SCENES } from './scenes/index.js';
-import { loadSettings, saveSettings, loadBest, saveBest } from './settings.js';
-import { loadProgress, saveProgress, levelOf, rewardFor } from './progress.js';
-import { RIFLES, UPGRADES, upgradeLevel, nextPrice, buyUpgrade, loadoutFor } from './armory.js';
+import { loadSettings, saveSettings, loadBest, saveBest, resetBest } from './settings.js';
+import { loadProgress, saveProgress, resetProgress, levelOf, rewardFor, levelBonus } from './progress.js';
+import { RIFLES, UPGRADES, upgradeLevel, nextPrice, buyUpgrade, loadoutFor, rifleState, buyRifle, equipRifle, ownsRifle } from './armory.js';
 import { createArmoryView } from './armory-view.js';
 
 const $ = (id) => /** @type {HTMLElement} */ (document.getElementById(id));
-const SCREENS = ['loading', 'menu', 'contracts', 'armory', 'pause', 'settings', 'credits', 'results'];
+const SCREENS = ['loading', 'menu', 'contracts', 'armory', 'profile', 'pause', 'settings', 'credits', 'results'];
 
 let settings = loadSettings();
 let settingsReturn = 'menu';
@@ -124,28 +124,55 @@ function showCash() {
   for (const el of document.querySelectorAll('.cash-now')) el.textContent = progress.cash.toLocaleString('en-US');
 }
 
+/** The rifle shown in the Armory (owned or not); starts on the equipped one. */
+let armoryRifle = progress.rifle;
+
 function renderArmory() {
   const level = levelOf(progress.xp).level;
   const tabs = $('rifle-tabs');
   tabs.textContent = '';
   for (const r of RIFLES) {
+    const st = rifleState(progress, r, level);
     const b = document.createElement('button');
     b.type = 'button';
     b.className = 'rifle-tab';
-    const owned = !r.unlock;
-    b.setAttribute('aria-pressed', String(progress.rifle === r.id));
-    b.disabled = !owned;
+    b.setAttribute('aria-pressed', String(armoryRifle === r.id));
     const name = document.createElement('b');
     name.textContent = r.name;
     const sub = document.createElement('span');
-    sub.textContent = owned ? r.calibre : 'Locked: level ' + r.unlock.level + (level >= r.unlock.level ? ' \u00b7 coming soon' : '');
+    sub.textContent = st.state === 'equipped' ? 'Equipped' : st.state === 'owned' ? 'Owned' : 'Level ' + r.unlock.level + ' · $' + r.unlock.price.toLocaleString('en-US');
     b.append(name, sub);
+    b.addEventListener('click', () => {
+      armoryRifle = r.id;
+      renderArmory();
+    });
     tabs.appendChild(b);
   }
-  const rifle = RIFLES.find((r) => r.id === progress.rifle) || RIFLES[0];
-  $('rifle-desc').textContent = rifle.description;
+  const rifle = RIFLES.find((r) => r.id === armoryRifle) || RIFLES[0];
+  const st = rifleState(progress, rifle, level);
+  $('rifle-desc').textContent = rifle.calibre + '. ' + rifle.description;
+  const action = /** @type {HTMLButtonElement} */ ($('rifle-action'));
+  action.disabled = st.state === 'equipped' || st.state === 'locked';
+  action.textContent = st.state === 'equipped' ? 'Equipped' : st.state === 'owned' ? 'Equip' :
+    st.state === 'buy' ? 'Buy $' + rifle.unlock.price.toLocaleString('en-US') : st.reason;
+  action.onclick = () => {
+    const ok = st.state === 'buy' ? buyRifle(progress, rifle, level) : st.state === 'owned' ? equipRifle(progress, rifle.id) : false;
+    if (!ok) return;
+    saveProgress(progress);
+    audio.unlock();
+    renderArmory();
+    showCash();
+    showWallet();
+  };
   const list = $('upgrade-list');
   list.textContent = '';
+  if (!ownsRifle(progress, rifle.id)) {
+    const li = document.createElement('li');
+    li.className = 'upgrade-note';
+    li.textContent = 'Buy the ' + rifle.name + ' to upgrade it. Upgrades belong to each rifle.';
+    list.appendChild(li);
+    return;
+  }
   for (const u of UPGRADES) {
     const lv = upgradeLevel(progress, rifle.id, u.id);
     const price = nextPrice(progress, rifle.id, u);
@@ -159,7 +186,7 @@ function renderArmory() {
     value.textContent = u.format(u.values[lv]);
     if (price !== null) {
       const next = document.createElement('em');
-      next.textContent = '  \u2192 ' + u.format(u.values[lv + 1]);
+      next.textContent = '  → ' + u.format(u.values[lv + 1]);
       value.appendChild(next);
     }
     const pips = document.createElement('div');
@@ -193,11 +220,78 @@ function renderArmory() {
   }
 }
 $('btn-nav-armory').addEventListener('click', () => {
+  armoryRifle = progress.rifle;
   renderArmory();
   showCash();
   show('armory');
 });
 $('btn-armory-back').addEventListener('click', () => show('menu'));
+
+// ---------- Profile (the agent's account) ----------
+
+let resetArmed = false;
+
+function renderProfile() {
+  const lv = levelOf(progress.xp);
+  const st = progress.stats;
+  let stars = 0;
+  let done = 0;
+  for (const m of MISSIONS) {
+    const b = loadBest(m.id) || 0;
+    stars += b;
+    if (b > 0) done++;
+  }
+  $('profile-level').textContent = String(lv.level);
+  $('profile-xp').style.width = Math.round(lv.fraction * 100) + '%';
+  $('profile-xp-text').textContent = lv.toNext.toLocaleString('en-US') + ' XP to level ' + (lv.level + 1);
+  const rifle = RIFLES.find((r) => r.id === progress.rifle) || RIFLES[0];
+  const rows = [
+    ['Cash', '$' + progress.cash.toLocaleString('en-US')],
+    ['Contracts', done + ' / ' + MISSIONS.length],
+    ['Stars', stars + ' / ' + MISSIONS.length * 3],
+    ['Wins', String(st.wins)],
+    ['Headshots', String(st.heads)],
+    ['Shots fired', String(st.shots)],
+    ['Longest kill', st.bestDistance ? Math.round(st.bestDistance) + ' m' : '---'],
+    ['Earned', '$' + st.earned.toLocaleString('en-US')],
+    ['Spent', '$' + st.spent.toLocaleString('en-US')],
+    ['Rifle', rifle.name]
+  ];
+  const grid = $('profile-stats');
+  grid.textContent = '';
+  for (const [k, v] of rows) {
+    const d = document.createElement('div');
+    d.className = 'stat';
+    const b = document.createElement('b');
+    b.textContent = k;
+    const sp = document.createElement('span');
+    sp.textContent = v;
+    d.append(b, sp);
+    grid.appendChild(d);
+  }
+  resetArmed = false;
+  $('btn-profile-reset').textContent = 'Reset progress';
+}
+$('btn-profile').addEventListener('click', () => {
+  renderProfile();
+  show('profile');
+});
+$('btn-profile-back').addEventListener('click', () => show('menu'));
+$('btn-profile-reset').addEventListener('click', () => {
+  // Two taps: the first arms it, the second wipes cash, level, rifles, upgrades and stars.
+  if (!resetArmed) {
+    resetArmed = true;
+    $('btn-profile-reset').textContent = 'Tap again to erase everything';
+    return;
+  }
+  progress = resetProgress();
+  resetBest();
+  armoryRifle = progress.rifle;
+  if (game) game.setLoadout(loadoutFor(progress));
+  showWallet();
+  renderProfile();
+  renderDossier(missionById(nextMissionId()));
+});
 
 // ---------- contract card ----------
 
@@ -395,7 +489,7 @@ if (cap && cap.isNativePlatform && cap.isNativePlatform() && cap.Plugins && cap.
       show(null);
       game.resume();
     } else if (open === 'settings') $('btn-settings-done').click();
-    else if (open === 'contracts' || open === 'armory') show('menu');
+    else if (open === 'contracts' || open === 'armory' || open === 'profile') show('menu');
     else if (open === 'credits') show('settings');
     else if (open === 'results') backToMenu();
     else cap.Plugins.App.exitApp();
@@ -475,17 +569,26 @@ function showResults(r) {
   $('res-shots').textContent = String(r.shots);
   $('res-distance').textContent = r.distance ? Math.round(r.distance) + ' m' : '---';
   $('res-head').textContent = r.head ? 'Yes' : 'No';
-  if (win) {
-    const best = loadBest(m.id);
-    if (best === null || r.stars > best) saveBest(m.id, r.stars);
-  }
-  const pay = rewardFor(r);
+  const best = loadBest(m.id);
+  const firstClear = win && !best;
+  const newStars = win ? Math.max(0, r.stars - (best || 0)) : 0;
+  if (win && (best === null || r.stars > best)) saveBest(m.id, r.stars);
+  const pay = rewardFor(r, { number: m.number, firstClear, newStars });
   const levelBefore = levelOf(progress.xp).level;
-  progress.cash += pay.cash;
   progress.xp += pay.xp;
+  const levelAfterXp = levelOf(progress.xp).level;
+  // A cash bonus for every level reached.
+  for (let l = levelBefore + 1; l <= levelAfterXp; l++) pay.lines.push({ label: 'Level ' + l + ' bonus', cash: levelBonus(l) });
+  pay.cash = pay.lines.reduce((sum, l) => sum + l.cash, 0);
+  progress.cash += pay.cash;
+  progress.stats.earned += pay.cash;
+  progress.stats.shots += r.shots;
   if (win) {
     progress.contracts++;
     progress.tutorialDone = true;
+    progress.stats.wins++;
+    if (r.head) progress.stats.heads++;
+    progress.stats.bestDistance = Math.max(progress.stats.bestDistance, r.distance || 0);
   }
   saveProgress(progress);
   showWallet();

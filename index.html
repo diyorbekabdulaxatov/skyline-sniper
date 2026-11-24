@@ -208,6 +208,16 @@ button { cursor: pointer; }
 .wallet {
   position: fixed; top: calc(10px + var(--st)); right: calc(14px + var(--sr)); display: flex; gap: 10px; z-index: 2;
 }
+button.wallet { background: none; border: 0; padding: 0; color: inherit; font: inherit; cursor: pointer; }
+button.wallet:active .chip { border-color: var(--accent); }
+.profile-level { display: flex; align-items: center; gap: 12px; }
+.level-bar.wide { flex: 1; width: auto; height: 7px; }
+.profile-level small { font-size: 12px; color: var(--muted); white-space: nowrap; }
+.profile-stats { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px 16px; margin: 14px 0; }
+.profile-stats .stat span { font-size: 18px; }
+.btn.danger { color: #ff8a7a; border-color: rgba(255,120,100,.45); }
+.upgrade-note { list-style: none; font-size: 13px; color: var(--muted); padding: 10px 0; }
+#rifle-action { align-self: flex-start; min-width: 140px; }
 .chip { display: flex; align-items: center; gap: 8px; padding: 6px 12px; border-radius: 999px; background: var(--glass-strong); border: 1px solid var(--line); font: 700 16px/1 var(--f-display); font-variant-numeric: tabular-nums; }
 .chip b { color: var(--accent); font-size: 12px; letter-spacing: .14em; }
 .level-bar { width: 70px; height: 5px; border-radius: 3px; background: rgba(255,255,255,.15); overflow: hidden; }
@@ -353,10 +363,10 @@ button { cursor: pointer; }
 </section>
 
 <section id="screen-menu" class="screen" hidden>
-  <div class="wallet">
-    <div class="chip"><b>LVL</b><span id="wallet-level">1</span><div class="level-bar"><i id="wallet-xp"></i></div></div>
-    <div class="chip"><b>$</b><span id="wallet-cash">0</span></div>
-  </div>
+  <button class="wallet" id="btn-profile" type="button" aria-label="Agent profile: level and cash">
+    <span class="chip"><b>LVL</b><span id="wallet-level">1</span><span class="level-bar"><i id="wallet-xp"></i></span></span>
+    <span class="chip"><b>$</b><span id="wallet-cash">0</span></span>
+  </button>
   <div class="title-block">
     <h1 class="brand">Skyline<br><em>Sniper</em></h1>
     <p class="tagline">Find the target. Read the wind. Take the shot.</p>
@@ -399,10 +409,27 @@ button { cursor: pointer; }
       <canvas id="armory-rifle" aria-label="The equipped rifle, turning slowly. Drag to turn it."></canvas>
       <div class="rifle-tabs" id="rifle-tabs"></div>
       <p class="rifle-desc" id="rifle-desc"></p>
+      <button id="rifle-action" class="btn btn-primary" type="button">Equipped</button>
     </div>
     <div class="armory-right">
       <ul class="upgrades" id="upgrade-list"></ul>
       <div class="actions row"><button id="btn-armory-back" class="btn btn-quiet" type="button">Back</button></div>
+    </div>
+  </div>
+</section>
+
+<section id="screen-profile" class="screen" hidden>
+  <div class="panel wide profile">
+    <div class="panel-head"><h2>Agent profile</h2></div>
+    <div class="profile-level">
+      <span class="chip"><b>LVL</b><span id="profile-level">1</span></span>
+      <span class="level-bar wide"><i id="profile-xp"></i></span>
+      <small id="profile-xp-text"></small>
+    </div>
+    <div class="profile-stats" id="profile-stats"></div>
+    <div class="actions row">
+      <button id="btn-profile-reset" class="btn btn-quiet danger" type="button">Reset progress</button>
+      <button id="btn-profile-back" class="btn btn-primary" type="button">Back</button>
     </div>
   </div>
 </section>

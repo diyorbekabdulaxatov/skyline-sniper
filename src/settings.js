@@ -55,3 +55,12 @@ export function saveBest(id, seconds) {
     /* storage unavailable */
   }
 }
+
+/** Forgets every contract's best stars (used when the player resets their progress). */
+export function resetBest() {
+  try {
+    localStorage.removeItem(BEST_KEY);
+  } catch (err) {
+    /* storage unavailable */
+  }
+}
