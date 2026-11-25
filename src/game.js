@@ -282,27 +282,49 @@ export async function createGame(opts) {
     audio.bolt(0.45);
     vibrate(30);
     if (s.panicTimer < 0 && !crowd.panicked) s.panicTimer = 0.25;
-    // Bullet cam when this shot will kill the target.
-    if (settings.bulletCam && willHitTarget(b)) {
+    // Bullet cam only when this shot will really kill the target, his walking or running
+    // included. The hit is then locked in: he is moved to where the bullet meets him, the whole
+    // scene freezes while the bullet flies, and the bullet resolves as that hit on arrival.
+    const pred = settings.bulletCam ? predictTargetHit(b) : null;
+    if (pred) {
       s.mode = 'bulletcam';
       s.timeScale = 0.04;
-      s.cam = { bullet: b, hold: -1 };
+      s.cam = { bullet: b, hold: -1, hitT: pred.t, part: pred.part };
+      crowd.target.update(pred.t, true);
       bulletMesh.visible = true;
       hud.cinematic(true);
     }
   }
 
-  /** Flies a copy of the bullet through the current scene to see whether it meets the target. */
-  function willHitTarget(b) {
+  /**
+   * Flies a copy of the bullet and returns when and where it meets the target, or null when it
+   * hits anything else first or misses. The target is tested in his own moving frame (the
+   * bullet shifted back by his velocity times the flight time), so a lead on a walking or
+   * running target counts; walls and other people are taken as they stand.
+   */
+  function predictTargetHit(b) {
+    const t = crowd.target;
+    if (!t.alive) return null;
+    const v = t.velocity();
     const c = { ...b };
     const wind = { x: s.wind, z: 0 };
     for (let i = 0; i < 3000; i++) {
       const a = { x: c.x, y: c.y, z: c.z };
+      const ta = c.t;
       step(c, 1 / 1000, wind);
-      const hit = collide(a, c);
-      if (hit) return hit.kind === 'person' && hit.person === crowd.target;
+      /** @type {any} */
+      let other = collide(a, c);
+      if (other && other.kind === 'person' && other.person === t) other = null;
+      const mine = crowd.hitTest(
+        { x: a.x - v.x * ta, y: a.y, z: a.z - v.z * ta },
+        { x: c.x - v.x * c.t, y: c.y, z: c.z - v.z * c.t }
+      );
+      const onTarget = mine && mine.person === t ? mine : null;
+      if (onTarget && (!other || onTarget.t <= other.t)) return { t: ta + (c.t - ta) * onTarget.t, part: onTarget.part };
+      if (other) return null;
+      if (c.y < -2) return null;
     }
-    return false;
+    return null;
   }
 
   function startReload() {
@@ -440,13 +462,20 @@ export async function createGame(opts) {
     }
   }
 
-  /** Everything that moves: people, cars, bullets, effects and panic. */
+  /**
+   * Everything that moves: people, cars, bullets, effects and panic. During the bullet cam the
+   * world is frozen and only the bullet (and, after the hit, the falling target) moves.
+   */
   function world(dt) {
-    crowd.update(dt, viewFrustum());
-    city.update(dt);
+    const frozen = s.mode === 'bulletcam';
+    if (!frozen) {
+      crowd.update(dt, viewFrustum());
+      city.update(dt);
+    }
     flyBullets(dt);
     puffs.update(dt);
     trail.update(dt);
+    if (frozen) return;
     if (s.panicTimer > 0) {
       s.panicTimer -= dt;
       if (s.panicTimer <= 0) {
@@ -539,9 +568,20 @@ export async function createGame(opts) {
       const b = s.bullets[i];
       let remaining = dt;
       let done = false;
+      // The bullet-cam bullet's hit was decided when it was fired (predictTargetHit): it lands
+      // on the target at that moment of its flight, whatever happens to the frozen scene.
+      const locked = s.mode === 'bulletcam' && s.cam && s.cam.bullet === b && s.cam.hitT !== undefined ? s.cam : null;
       while (remaining > 1e-7 && !done) {
         const h = Math.min(SUBSTEP, remaining);
         remaining -= h;
+        if (locked) {
+          step(b, Math.min(h, Math.max(0, locked.hitT - b.t) + 1e-6), wind);
+          if (b.t >= locked.hitT) {
+            resolveHit({ kind: 'person', person: crowd.target, part: locked.part, x: b.x, y: b.y, z: b.z }, b);
+            done = true;
+          }
+          continue;
+        }
         const a = { x: b.x, y: b.y, z: b.z };
         step(b, h, wind);
         const hit = collide(a, b);
@@ -652,6 +692,8 @@ export async function createGame(opts) {
       s.timeScale = Math.min(0.15, s.timeScale + realDt * 0.05);
     } else if (c.hold >= 0) {
       bulletMesh.visible = false;
+      // Only the target moves while the kill cam watches him fall; everyone else stays frozen.
+      crowd.target.update(dt, true);
       const f = c.focus;
       const t = crowd.target;
       // Watch from the shooter's side, slowly swinging across it: the body falls away from the
