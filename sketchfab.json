@@ -187,6 +187,13 @@
       "texture": 1024,
       "use": "Armory: Albatross .408, the heavy long-range rifle",
       "licence": "CC Attribution 4.0, M200 sniper rifle by sannf4"
+    },
+    {
+      "name": "train_emu",
+      "uid": "07d7a69ffb544ec48442ae3448ee6f1f",
+      "texture": 1024,
+      "use": "Platform 4: the four-car double-deck commuter train (stopping train on track 4 and the coupled express on track 3)",
+      "licence": "CC Attribution 4.0, Tangara Sydney Trains T set by TheOminousDuck (real-world livery: test build only)"
     }
   ]
 }
