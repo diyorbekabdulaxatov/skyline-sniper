@@ -32,9 +32,15 @@ export function createArmoryView(canvas) {
     if (!fitted.has(url)) {
       fitted.set(url, (async () => {
         try {
-          return (await loadFittedRifle(1.25, true, url || undefined)) || (url ? await loadFittedRifle(1.25, true) : null);
+          const own = await loadFittedRifle(1.25, true, url || undefined);
+          if (own) return own;
         } catch (err) {
           console.warn('Armory rifle model did not load: ' + url, err);
+        }
+        // The default rifle stands in for a missing or broken model.
+        try {
+          return url ? await loadFittedRifle(1.25, true) : null;
+        } catch (err) {
           return null;
         }
       })());

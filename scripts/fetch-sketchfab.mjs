@@ -27,8 +27,18 @@ mkdirSync(out, { recursive: true });
 const API = 'https://api.sketchfab.com/v3/models/';
 const auth = { Authorization: 'Token ' + token, 'User-Agent': 'skyline-sniper-asset-fetch' };
 
+const wait = (ms) => new Promise((done) => setTimeout(done, ms));
+
 async function api(path) {
-  const r = await fetch(API + path, { headers: auth });
+  let r = await fetch(API + path, { headers: auth });
+  // Rate limited: wait (Retry-After when given) and try again a few times.
+  for (let attempt = 1; r.status === 429 && attempt <= 5; attempt++) {
+    const after = Number(r.headers.get('retry-after'));
+    const ms = Number.isFinite(after) && after > 0 ? Math.min(120, after) * 1000 : 15000 * attempt;
+    console.warn(`${path}: HTTP 429, retrying in ${Math.round(ms / 1000)} s`);
+    await wait(ms);
+    r = await fetch(API + path, { headers: auth });
+  }
   if (r.status === 401 || r.status === 403) throw new Error(`HTTP ${r.status}: the token was rejected or the model is not downloadable`);
   if (!r.ok) throw new Error(`${path}: HTTP ${r.status}`);
   return r.json();
@@ -137,6 +147,8 @@ for (const item of list) {
 
     const dir = join(cache, uid);
     if (!(existsSync(dir) && findScene(dir))) {
+      // Space the download requests out: Sketchfab rate-limits bursts of them.
+      await wait(4000);
       const dl = await api(uid + '/download');
       const pick = dl.glb ? { url: dl.glb.url, ext: 'glb' } : dl.gltf ? { url: dl.gltf.url, ext: 'zip' } : null;
       if (!pick) throw new Error('no glTF or GLB download offered');

@@ -1,5 +1,5 @@
 {
-  "note": "Test-only Sketchfab models, fetched and shrunk in CI by scripts/fetch-sketchfab.mjs (needs the SKETCHFAB_TOKEN secret) into public/game-assets/sketchfab/. Check every licence before any release.",
+  "note": "Test-only Sketchfab models, fetched and shrunk in CI by scripts/fetch-sketchfab.mjs (needs the SKETCHFAB_TOKEN secret) into public/game-assets/sketchfab/. Check every licence before any release. Downloads are rate limited; the fetch retries on HTTP 429.",
   "models": [
     {
       "name": "downtown_towers",

@@ -52,9 +52,13 @@ export async function loadFittedRifle(length, clone, url) {
   model.traverse((o) => {
     const m = /** @type {any} */ (o);
     if (m.isMesh && m.material) {
-      m.material = m.material.clone();
-      m.material.metalness = Math.min(0.45, m.material.metalness ?? 0.3);
-      m.material.roughness = Math.max(0.45, m.material.roughness ?? 0.55);
+      const tame = (mat) => {
+        const c = mat.clone();
+        c.metalness = Math.min(0.45, c.metalness ?? 0.3);
+        c.roughness = Math.max(0.45, c.roughness ?? 0.55);
+        return c;
+      };
+      m.material = Array.isArray(m.material) ? m.material.map(tame) : tame(m.material);
       m.frustumCulled = false;
     }
   });
