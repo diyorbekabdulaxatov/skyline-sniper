@@ -2,6 +2,7 @@
 // Entry point: loading screen, menu with the contract dossier, pause, settings and results.
 import { createHud } from './hud.js';
 import { createAudio } from './audio.js';
+import { createMusic } from './music.js';
 import { createInput } from './input.js';
 import { createGame } from './game.js';
 import { renderPortrait } from './people.js';
@@ -25,6 +26,8 @@ let progress = loadProgress();
 
 const audio = createAudio();
 audio.setEnabled(settings.sound);
+const music = createMusic();
+music.setVolume(settings.music || 'medium');
 const hud = createHud();
 const viewCanvas = /** @type {HTMLCanvasElement} */ ($('view'));
 const scopeCanvas = /** @type {HTMLCanvasElement} */ ($('scope'));
@@ -43,6 +46,7 @@ const input = createInput(viewCanvas, {
 // Any touch unlocks audio (browsers need a gesture) and skips the bullet cam.
 window.addEventListener('pointerdown', () => {
   audio.unlock();
+  music.unlock();
   if (game) game.skipCinematic();
 });
 
@@ -473,7 +477,10 @@ createGame({
     /* storage blocked */
   }
   if (autostart) startMission();
-  else show('menu');
+  else {
+    show('menu');
+    music.play('menu');
+  }
   maybeSelfTest();
   window.addEventListener('hashchange', maybeSelfTest);
 }).catch((err) => {
@@ -499,6 +506,8 @@ async function startMission(id) {
   show(null);
   game.setLoadout(loadoutFor(progress));
   game.begin();
+  music.duck(false);
+  music.play('mission');
 }
 
 // First contract only: hints that walk the player through scope, aim and fire.
@@ -547,11 +556,15 @@ zoom.addEventListener('input', () => game.setZoom(parseFloat(zoom.value)));
 // ---------- pause ----------
 
 function pauseGame() {
-  if (game && game.pause()) show('pause');
+  if (game && game.pause()) {
+    show('pause');
+    music.duck(true);
+  }
 }
 $('btn-resume').addEventListener('click', () => {
   show(null);
   game.resume();
+  music.duck(false);
 });
 $('btn-restart').addEventListener('click', () => restartContract());
 $('btn-quit').addEventListener('click', () => backToMenu());
@@ -576,10 +589,13 @@ async function backToMenu() {
   showBest();
   showWallet();
   show('menu');
+  music.duck(false);
+  music.play('menu');
 }
 $('btn-pause-settings').addEventListener('click', () => openSettings('pause'));
 document.addEventListener('visibilitychange', () => {
   if (document.hidden) pauseGame();
+  music.setHidden(document.hidden);
 });
 
 // ---------- Android back button (only inside the Capacitor app) ----------
@@ -592,6 +608,7 @@ if (cap && cap.isNativePlatform && cap.isNativePlatform() && cap.Plugins && cap.
     else if (open === 'pause') {
       show(null);
       game.resume();
+      music.duck(false);
     } else if (open === 'settings') $('btn-settings-done').click();
     else if (open === 'contracts' || open === 'armory' || open === 'profile') show('menu');
     else if (open === 'credits') show('settings');
@@ -611,6 +628,7 @@ const form = {
   markers: /** @type {HTMLInputElement} */ ($('set-markers')),
   bulletCam: /** @type {HTMLInputElement} */ ($('set-bulletcam')),
   sound: /** @type {HTMLInputElement} */ ($('set-sound')),
+  music: /** @type {HTMLSelectElement} */ ($('set-music')),
   trail: /** @type {HTMLInputElement} */ ($('set-trail'))
 };
 
@@ -624,6 +642,7 @@ function openSettings(from) {
   form.markers.checked = settings.markers;
   form.bulletCam.checked = settings.bulletCam;
   form.sound.checked = settings.sound;
+  form.music.value = settings.music || 'medium';
   form.trail.checked = settings.trail;
   show('settings');
 }
@@ -642,10 +661,13 @@ $('btn-settings-done').addEventListener('click', async () => {
     markers: form.markers.checked,
     bulletCam: form.bulletCam.checked,
     sound: form.sound.checked,
+    music: /** @type {any} */ (form.music.value),
     trail: form.trail.checked
   };
   if (wantsGyro) await input.requestGyroPermission();
   saveSettings(settings);
+  audio.setEnabled(settings.sound);
+  music.setVolume(settings.music || 'medium');
   if (game) game.applySettings(settings);
   show(settingsReturn);
 });

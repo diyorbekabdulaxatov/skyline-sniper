@@ -76,5 +76,23 @@
       "name": "covered_car",
       "id": "covered_car"
     }
+  ],
+  "music": [
+    {
+      "name": "menu",
+      "url": "https://opengameart.org/sites/default/files/espionage.ogg",
+      "title": "Espionage",
+      "author": "haeldb",
+      "licence": "CC0",
+      "page": "https://opengameart.org/content/espionage"
+    },
+    {
+      "name": "mission",
+      "url": "https://opengameart.org/sites/default/files/eyes_in_the_shadows.ogg",
+      "title": "Eyes in the Shadows",
+      "author": "tsorthan-grove",
+      "licence": "CC0",
+      "page": "https://opengameart.org/content/eyes-in-the-shadows"
+    }
   ]
 }

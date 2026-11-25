@@ -7,13 +7,13 @@ const BEST_KEY = 'skyline.best.v1';
 
 /**
  * @typedef {{ quality: 'auto' | 'low' | 'medium' | 'high', sensitivity: number,
- *   gyro: 'off' | 'scope' | 'always', sound: boolean, trail: boolean,
+ *   gyro: 'off' | 'scope' | 'always', sound: boolean, music: 'off' | 'low' | 'medium' | 'high', trail: boolean,
  *   markers: boolean, bulletCam: boolean, fps: number }} Settings
  */
 
 /** @type {Settings} */
 export const DEFAULTS = {
-  quality: 'auto', sensitivity: 1, gyro: 'off', sound: true, trail: true, markers: true, bulletCam: true, fps: 30
+  quality: 'auto', sensitivity: 1, gyro: 'off', sound: true, music: 'medium', trail: true, markers: true, bulletCam: true, fps: 30
 };
 
 /** @returns {Settings} */

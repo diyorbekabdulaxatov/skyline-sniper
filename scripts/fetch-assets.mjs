@@ -122,5 +122,20 @@ for (const { name, id } of list.models) {
   }
 }
 
+// Music: CC0 tracks from OpenGameArt (assets.json "music"), copied as they are.
+manifest.music = {};
+for (const m of list.music || []) {
+  try {
+    const raw = join(cache, 'music', m.name + '.ogg');
+    await download(m.url, raw);
+    mkdirSync(join(out, 'music'), { recursive: true });
+    writeFileSync(join(out, 'music', m.name + '.ogg'), readFileSync(raw));
+    manifest.music[m.name] = 'music/' + m.name + '.ogg';
+    console.log('music ', m.title, 'by', m.author, '(' + m.licence + ')');
+  } catch (err) {
+    console.warn('music  ' + m.name + ' skipped: ' + err.message);
+  }
+}
+
 writeFileSync(join(out, 'manifest.json'), JSON.stringify(manifest, null, 2));
 console.log('Assets ready in public/game-assets/');
