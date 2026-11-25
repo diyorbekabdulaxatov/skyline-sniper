@@ -164,8 +164,14 @@ export async function createGame(opts) {
   const view = { w: 1, h: 1, dpr: 1 };
   const perf = { frames: 0, total: 0, checked: false, auto: 'high' };
   let steady = false;
-  /** Upgrades of the equipped rifle (armory.js loadoutFor); main.js sets it before each contract. */
-  let loadout = { maxZoom: ZOOM_MAX, swayMul: 1, breathTime: 5, boltMul: 1 };
+  /**
+   * Upgrades, trait and gear of the equipped rifle (armory.js loadoutFor); main.js sets it before
+   * each contract.
+   * @type {{ maxZoom: number, swayMul: number, breathTime: number, boltMul: number,
+   *   holdSwayMul: number, traits: import('./armory.js').RifleTraits,
+   *   gear: Partial<Record<import('./armory.js').GearId, boolean>> }}
+   */
+  let loadout = { maxZoom: ZOOM_MAX, swayMul: 1, breathTime: 5, boltMul: 1, holdSwayMul: 1, traits: {}, gear: {} };
   let s = freshState();
   let scopeDrawn = false;
   let rangeTimer = 0;
@@ -198,6 +204,9 @@ export async function createGame(opts) {
       intelIndex: 0,
       panicTimer: -1,
       endTimer: -1,
+      /** Rangefinder distance (m) or null, and the ballistic solution there (gear readouts). */
+      range: /** @type {number | null} */ (null),
+      aim: /** @type {{ drop: number, drift: number, range: number } | null} */ (null),
       result: null,
       killShot: null,
       timeScale: 1,
@@ -278,10 +287,12 @@ export async function createGame(opts) {
     s.shots++;
     s.bolt = rifle.boltTime * loadout.boltMul;
     s.recoil += s.scoped ? 0.03 : 0.05;
-    audio.shot();
-    audio.bolt(0.45);
+    const quiet = !!loadout.traits.suppressed;
+    audio.shot(quiet);
+    if (!loadout.traits.semiAuto) audio.bolt(0.45);
     vibrate(30);
-    if (s.panicTimer < 0 && !crowd.panicked) s.panicTimer = 0.25;
+    // A suppressed shot does not alarm the crowd; any other shot sends it running.
+    if (!quiet && s.panicTimer < 0 && !crowd.panicked) s.panicTimer = 0.25;
     // Bullet cam only when this shot will really kill the target, his walking or running
     // included. The hit is then locked in: he is moved to where the bullet meets him, the whole
     // scene freezes while the bullet flies, and the bullet resolves as that hit on arrival.
@@ -325,6 +336,26 @@ export async function createGame(opts) {
       if (c.y < -2) return null;
     }
     return null;
+  }
+
+  /**
+   * The ballistic solution at the rangefinder distance for the gear readouts (ballistic computer
+   * dot, wind meter): drop and drift there, like debug.solveTarget, with the wind's component
+   * across the line of sight. Skipped without that gear.
+   */
+  function updateAim() {
+    if (!loadout.gear.computer && !loadout.gear.windmeter) {
+      s.aim = null;
+      return;
+    }
+    const range = s.range;
+    if (range === null || !(range > 5) || range > 2000) {
+      s.aim = null;
+      return;
+    }
+    const cross = s.wind * Math.cos(s.yaw);
+    const shot = shotAt(rifle, zero, range, cross);
+    s.aim = { drop: shot.drop, drift: shot.drift, range };
   }
 
   function startReload() {
@@ -413,7 +444,7 @@ export async function createGame(opts) {
       s.breath = Math.min(1, s.breath + dt / 3.5);
       if (s.tired > 0) s.tired -= dt;
     }
-    const swayTarget = steady ? 0 : rifle.swayMul * loadout.swayMul * (s.holding ? 0.12 : s.tired > 0 ? 2 : 1) * (s.scoped ? 1 : 0.25);
+    const swayTarget = steady ? 0 : rifle.swayMul * loadout.swayMul * (s.holding ? 0.12 * loadout.holdSwayMul : s.tired > 0 ? 2 : 1) * (s.scoped ? 1 : 0.25);
     s.swayMul += (swayTarget - s.swayMul) * Math.min(1, dt * 4);
     s.swayT += dt;
     const swayYaw = SWAY * s.swayMul * (Math.sin(s.swayT * 0.71) * 0.6 + Math.sin(s.swayT * 1.37 + 0.5) * 0.4);
@@ -444,12 +475,15 @@ export async function createGame(opts) {
       rangeTimer = 0.1;
       raycaster.setFromCamera(center, camera);
       const hits = raycaster.intersectObjects(dressing.rangeMeshes.length ? [...dressing.rangeMeshes, ...city.rangeMeshes] : city.rangeMeshes, false);
-      hud.range(hits.length ? hits[0].distance : null);
+      s.range = hits.length ? hits[0].distance : null;
+      hud.range(s.range);
+      updateAim();
     }
 
     hud.objective(crowd.target.alive ? 'Eliminate ' + mission.target.name : 'Target down');
     hud.timer(timeLeft());
     hud.wind(s.wind);
+    hud.windHold(loadout.gear.windmeter ? (s.aim ? (-s.aim.drift / s.aim.range) * 1000 : null) : undefined);
     hud.ammo(s.ammo, rifle.magazine, s.reload > 0 ? 'RELOADING' : s.bolt > 0 ? 'BOLT' : s.ammo === 0 ? 'EMPTY' : 'READY');
     hud.breath(s.breath, s.holding, s.tired > 0);
     hud.scoped(s.scoped, s.zoom);
@@ -616,9 +650,12 @@ export async function createGame(opts) {
       const t = segmentBox(a, b, box);
       if (t !== null) consider({ t, kind: 'wall' });
     }
-    for (const box of city.carColliders) {
-      const t = segmentBox(a, b, box);
-      if (t !== null) consider({ t, kind: 'car' });
+    // Anti-materiel rounds go straight through car bodies.
+    if (!loadout.traits.pierceCars) {
+      for (const box of city.carColliders) {
+        const t = segmentBox(a, b, box);
+        if (t !== null) consider({ t, kind: 'car' });
+      }
     }
     const p = crowd.hitTest(a, b);
     if (p) consider({ t: p.t, kind: 'person', part: p.part, person: p.person });
@@ -761,7 +798,11 @@ export async function createGame(opts) {
     renderer.render(scene, camera);
     const showScope = s.scoped && s.mode === 'playing' && s.fov < BASE_FOV * 0.8;
     if (showScope) {
-      drawScope(scopeCtx, view.w, view.h, view.dpr, s.fov, { onTarget: s.onTarget, zoom: s.zoom });
+      // Ballistic computer: where the bullet lands, in mils right and down from the centre.
+      const aimPoint = loadout.gear.computer && s.aim
+        ? { x: (s.aim.drift / s.aim.range) * 1000, y: (s.aim.drop / s.aim.range) * 1000 }
+        : null;
+      drawScope(scopeCtx, view.w, view.h, view.dpr, s.fov, { onTarget: s.onTarget, zoom: s.zoom, aimPoint });
       scopeDrawn = true;
     } else if (scopeDrawn) {
       clearScope(scopeCtx, view.w, view.h, view.dpr);
@@ -879,10 +920,17 @@ export async function createGame(opts) {
     async toMenu() {
       await resetContract();
     },
-    /** @param {{ maxZoom: number, swayMul: number, breathTime: number, boltMul: number, rifle?: object }} next */
+    /**
+     * Applies the equipped rifle, upgrades, trait and gear (armory.js loadoutFor).
+     * @param {{ maxZoom: number, swayMul: number, breathTime: number, boltMul: number,
+     *   holdSwayMul?: number, traits?: import('./armory.js').RifleTraits,
+     *   gear?: Partial<Record<import('./armory.js').GearId, boolean>>, rifle?: object }} next
+     */
     setLoadout(next) {
-      loadout = next;
+      loadout = { ...next, holdSwayMul: next.holdSwayMul ?? 1, traits: next.traits || {}, gear: next.gear || {} };
       rifle = { ...KESTREL, ...(next.rifle || {}) };
+      if (viewArms) viewArms.setSuppressor(!!loadout.traits.suppressed);
+      s.aim = null;
       zero = zeroAngle(rifle);
       if (s.mode !== 'playing') s.ammo = rifle.magazine;
       s.zoom = Math.min(s.zoom, loadout.maxZoom);

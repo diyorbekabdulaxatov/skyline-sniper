@@ -15,7 +15,8 @@ export const ARMS_FIT = { scale: 0.01, x: 0.03, y: -0.075, z: 0, rx: 0.02, ry: M
 
 /**
  * @returns {Promise<{ root: THREE.Group, model: THREE.Object3D, mixer: THREE.AnimationMixer | null,
- *   clips: THREE.AnimationClip[], fit: (f?: Partial<typeof ARMS_FIT>) => void } | null>}
+ *   clips: THREE.AnimationClip[], fit: (f?: Partial<typeof ARMS_FIT>) => void,
+ *   setSuppressor: (on: boolean) => void } | null>}
  */
 export async function loadFpsArms() {
   let gltf;
@@ -62,5 +63,16 @@ export async function loadFpsArms() {
     root.rotation.set(ARMS_FIT.rx, ARMS_FIT.ry, ARMS_FIT.rz, 'YXZ');
   };
   fit();
-  return { root, model, mixer, clips: gltf.animations, fit };
+  // The model's rifle has a silencer part (silencer_sniper_0): shown only for a suppressed rifle.
+  /** @type {THREE.Object3D[]} */
+  const silencers = [];
+  model.traverse((o) => {
+    if (/silencer/i.test(o.name)) silencers.push(o);
+  });
+  /** @param {boolean} on */
+  const setSuppressor = (on) => {
+    for (const o of silencers) o.visible = on;
+  };
+  setSuppressor(false);
+  return { root, model, mixer, clips: gltf.animations, fit, setSuppressor };
 }

@@ -152,6 +152,41 @@
       "uid": "996d7f56b3e64a4cbeca0434b5811632",
       "texture": 512,
       "use": "Park Run: dogs walked through the park (animated)"
+    },
+    {
+      "name": "rifle_harrier",
+      "uid": "45c99509f1ee4c2a8c9c3336d3e2ff5a",
+      "texture": 1024,
+      "use": "Armory: Harrier .338, the starter bolt rifle",
+      "licence": "CC Attribution 4.0, Modern Sniper Rifle (Free Lowpoly) by dan741vlasov"
+    },
+    {
+      "name": "rifle_kite",
+      "uid": "d4a9412275aa4974b146ad8ce9dc5fc2",
+      "texture": 1024,
+      "use": "Armory: Kite 7.62, the semi-automatic marksman rifle",
+      "licence": "CC Attribution 4.0, SVD *Updated* by WillyG99"
+    },
+    {
+      "name": "rifle_wren",
+      "uid": "2a38f8e36cae4952b6f04ec27b6c60da",
+      "texture": 1024,
+      "use": "Armory: Wren .308 SD, the suppressed rifle",
+      "licence": "CC Attribution 4.0, VSK-94 Sniper Rifle Gameready Lowpoly by valterjherson1"
+    },
+    {
+      "name": "rifle_osprey",
+      "uid": "ff516fd86b334cb2b73882f78ff3234d",
+      "texture": 1024,
+      "use": "Armory: Osprey .50, the bullpup anti-materiel rifle",
+      "licence": "CC Attribution 4.0, Heavy Sniper Rifle by tnnv"
+    },
+    {
+      "name": "rifle_albatross",
+      "uid": "231bc2d38c4c4cf2bbe882112caa1ba4",
+      "texture": 1024,
+      "use": "Armory: Albatross .408, the heavy long-range rifle",
+      "licence": "CC Attribution 4.0, M200 sniper rifle by sannf4"
     }
   ]
 }

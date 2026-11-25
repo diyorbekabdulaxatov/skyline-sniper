@@ -216,8 +216,6 @@ button.wallet:active .chip { border-color: var(--accent); }
 .profile-stats { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px 16px; margin: 14px 0; }
 .profile-stats .stat span { font-size: 18px; }
 .btn.danger { color: #ff8a7a; border-color: rgba(255,120,100,.45); }
-.upgrade-note { list-style: none; font-size: 13px; color: var(--muted); padding: 10px 0; }
-#rifle-action { align-self: flex-start; min-width: 140px; }
 .chip { display: flex; align-items: center; gap: 8px; padding: 6px 12px; border-radius: 999px; background: var(--glass-strong); border: 1px solid var(--line); font: 700 16px/1 var(--f-display); font-variant-numeric: tabular-nums; }
 .chip b { color: var(--accent); font-size: 12px; letter-spacing: .14em; }
 .level-bar { width: 70px; height: 5px; border-radius: 3px; background: rgba(255,255,255,.15); overflow: hidden; }
@@ -254,37 +252,74 @@ button.wallet:active .chip { border-color: var(--accent); }
 .contract-card .lock { margin-top: auto; font-size: 12px; color: var(--muted); display: flex; gap: 6px; align-items: center; }
 .contract-card.locked { opacity: .6; }
 .contract-card .btn { padding: 9px 12px; font-size: 14px; }
-.armory { flex-direction: row; gap: 22px; }
-.armory-left, .armory-right { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; gap: 10px; }
-#armory-rifle { width: 100%; height: 150px; display: block; touch-action: none; cursor: grab; border-radius: 12px; background: radial-gradient(ellipse at center, rgba(255,255,255,.08), transparent 70%); }
-.rifle-tabs { display: flex; gap: 8px; }
-.rifle-tab { flex: 1; padding: 8px 10px; border-radius: 10px; border: 1px solid var(--line); background: rgba(255,255,255,.05); text-align: left; display: grid; gap: 2px; }
-.rifle-tab b { font: 700 15px/1 var(--f-display); letter-spacing: .06em; }
-.rifle-tab span { font-size: 11px; color: var(--muted); }
+/* Armory store: header with Back, title, Rifles/Gear tabs and cash; the body fills the rest of the
+   panel and only its lists scroll, so the page itself never scrolls on a 780x360 phone. */
+#screen-armory { overflow: hidden; }
+.panel.store { width: min(860px, 100%); height: min(460px, calc(100vh - 24px)); height: min(460px, calc(100dvh - 24px)); gap: 10px; }
+.store-head { display: flex; align-items: center; gap: 12px; flex: none; }
+.store-head h2 { margin-right: auto; }
+.store-head .btn { min-height: 44px; padding: 0 16px; }
+.store-tabs { display: flex; gap: 4px; padding: 3px; border-radius: 12px; background: rgba(255,255,255,.06); border: 1px solid var(--line); }
+.store-tab { min-height: 40px; min-width: 92px; padding: 0 14px; border: 0; border-radius: 9px; background: none; font: 700 15px/1 var(--f-display); letter-spacing: .14em; text-transform: uppercase; color: var(--muted); }
+.store-tab[aria-selected="true"] { background: var(--accent); color: #1a1206; }
+.store-body { flex: 1 1 auto; min-height: 0; }
+.store-rifles { display: grid; grid-template-columns: 172px minmax(0, 1fr) minmax(0, 270px); grid-template-rows: minmax(0, 1fr); gap: 12px; }
+.scroll-y { overflow-y: auto; touch-action: pan-y; overscroll-behavior: contain; min-height: 0; }
+.rifle-list { list-style: none; margin: 0; padding: 0 2px 0 0; display: flex; flex-direction: column; gap: 5px; }
+.rifle-tab { width: 100%; min-height: 44px; padding: 6px 10px; border-radius: 10px; border: 1px solid var(--line); background: rgba(255,255,255,.05); text-align: left; display: grid; gap: 3px; }
+.rifle-tab b { font: 700 15px/1 var(--f-display); letter-spacing: .05em; }
+.rifle-tab span { font-size: 11px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rifle-tab span.equipped { color: var(--ok); }
+.rifle-tab span.locked { color: #c99; }
 .rifle-tab[aria-pressed="true"] { border-color: var(--accent); background: rgba(255,178,62,.12); }
-.rifle-tab:disabled { opacity: .55; cursor: default; }
-.rifle-desc { margin: 0; font-size: 12px; color: var(--muted); line-height: 1.45; }
-.upgrades { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
-.upgrade { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 10px; align-items: center; padding: 8px 10px; border-radius: 10px; background: rgba(255,255,255,.05); }
-.upgrade .name { font: 700 15px/1 var(--f-display); letter-spacing: .08em; text-transform: uppercase; }
-.upgrade .value { font-size: 11.5px; color: var(--muted); }
+.rifle-detail { display: flex; flex-direction: column; gap: 6px; min-width: 0; min-height: 0; }
+#armory-rifle { flex: 1 1 0; min-height: 56px; width: 100%; display: block; touch-action: none; cursor: grab; border-radius: 12px; background: radial-gradient(ellipse at center, rgba(255,255,255,.08), transparent 70%); }
+.rifle-title { display: flex; align-items: baseline; gap: 8px; flex: none; min-width: 0; }
+.rifle-title b { font: 700 19px/1 var(--f-display); letter-spacing: .04em; white-space: nowrap; }
+.rifle-title span { font-size: 11px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rifle-trait { margin: 0; font-size: 11.5px; line-height: 1.3; color: var(--text); flex: none; }
+.rifle-trait b { color: var(--accent); font-weight: 600; }
+.stat-bars { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 5px 14px; flex: none; }
+.bar { display: grid; gap: 3px; }
+.bar span { display: flex; justify-content: space-between; font: 600 9.5px/1 var(--f-body); letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+.bar i { display: block; height: 5px; border-radius: 3px; background: rgba(255,255,255,.14); overflow: hidden; }
+.bar i em { display: block; height: 100%; background: var(--accent); }
+#rifle-action { flex: none; min-height: 44px; padding: 0 16px; }
+#rifle-action:disabled { opacity: .55; cursor: default; }
+.upgrades { list-style: none; margin: 0; padding: 0 2px 0 0; display: flex; flex-direction: column; gap: 6px; }
+.upgrade { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 3px 10px; align-items: center; padding: 5px 8px 5px 10px; border-radius: 10px; background: rgba(255,255,255,.05); }
+.upgrade .name { font: 700 14px/1 var(--f-display); letter-spacing: .08em; text-transform: uppercase; }
+.upgrade .value { font-size: 11px; color: var(--muted); }
 .upgrade .value em { font-style: normal; color: var(--ok); }
 .pips { display: flex; gap: 4px; }
 .pips i { width: 16px; height: 5px; border-radius: 2px; background: rgba(255,255,255,.15); }
 .pips i.on { background: var(--accent); }
-.upgrade .btn { grid-row: 1 / span 3; grid-column: 2; padding: 9px 12px; font-size: 13px; min-width: 96px; }
+.upgrade .btn { grid-row: 1 / span 3; grid-column: 2; min-height: 44px; padding: 0 10px; font-size: 13px; min-width: 82px; }
 .upgrade .btn:disabled { opacity: .45; cursor: default; }
+.upgrade-note { list-style: none; font-size: 12px; line-height: 1.45; color: var(--muted); padding: 4px 2px; }
+.upgrade-note b { display: block; color: var(--text); font: 700 14px/1.2 var(--f-display); letter-spacing: .08em; text-transform: uppercase; margin-bottom: 4px; }
+.store-gear { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; align-content: start; }
+.gear-card { display: flex; flex-direction: column; gap: 6px; padding: 10px 12px; border-radius: 12px; background: rgba(255,255,255,.05); border: 1px solid var(--line); min-height: 0; }
+.gear-card.owned { border-color: rgba(62,207,142,.5); }
+.gear-card h3 { margin: 0; font: 700 17px/1.05 var(--f-display); letter-spacing: .04em; }
+.gear-card p { margin: 0; font-size: 11.5px; line-height: 1.4; color: var(--muted); }
+.gear-card .meta { margin-top: auto; font-size: 11px; color: var(--muted); }
+.gear-card .meta.owned { color: var(--ok); }
+.gear-card .btn { min-height: 44px; padding: 0 12px; font-size: 14px; }
+.gear-card .btn:disabled { opacity: .5; cursor: default; }
+.wind-hold { margin: 1px 0 0 !important; font: 700 12px/1 var(--f-display) !important; color: var(--accent) !important; letter-spacing: .06em; }
 @media (max-height: 430px) {
   .menu-nav { margin-top: 10px; gap: 6px; }
   .nav-btn { padding: 7px 12px; }
-  #armory-rifle { height: 110px; }
   .contract-card { min-height: 120px; }
-  .upgrades { gap: 6px; }
-  .upgrade { padding: 6px 10px; }
+  .panel.store { padding: 10px 16px; gap: 8px; }
+  .store-head h2 { font-size: 24px; }
 }
 @media (max-width: 640px) {
   .contract-grid { grid-template-columns: minmax(0, 1fr); }
-  .armory { flex-direction: column; }
+  .store-rifles { grid-template-columns: minmax(0, 1fr); overflow-y: auto; }
+  .store-gear { grid-template-columns: repeat(2, minmax(0, 1fr)); overflow-y: auto; }
+  #armory-rifle { flex: none; height: 110px; }
 }
 /* Results fit a landscape phone without scrolling: story and stats left, payout and buttons right. */
 #screen-results .panel { width: min(780px, 100%); flex-direction: row; gap: 28px; align-items: stretch; }
@@ -333,7 +368,7 @@ button.wallet:active .chip { border-color: var(--accent); }
   <div class="hud-top">
     <div></div>
     <div class="readouts">
-      <div class="stat"><b>Wind</b><span><span id="hud-wind-arrow">&rarr;</span> <span id="hud-wind">0.0 m/s</span></span></div>
+      <div class="stat"><b>Wind</b><span><span id="hud-wind-arrow">&rarr;</span> <span id="hud-wind">0.0 m/s</span></span><small id="hud-wind-hold" class="wind-hold" hidden></small></div>
       <div class="stat"><b>Range</b><span><span id="hud-range">---</span><small>m</small></span></div>
       <button id="btn-pause" type="button" aria-label="Pause">II</button>
     </div>
@@ -372,7 +407,7 @@ button.wallet:active .chip { border-color: var(--accent); }
     <p class="tagline">Find the target. Read the wind. Take the shot.</p>
     <nav class="menu-nav" aria-label="Main menu">
       <button id="btn-nav-contracts" class="nav-btn" type="button"><b>Contracts</b><span id="nav-contracts-sub">1 of 3 open</span></button>
-      <button id="btn-nav-armory" class="nav-btn" type="button"><b>Armory</b><span id="nav-armory-sub">Upgrade your rifle</span></button>
+      <button id="btn-nav-armory" class="nav-btn" type="button"><b>Armory</b><span id="nav-armory-sub">Rifles, upgrades and gear</span></button>
       <button id="btn-menu-settings" class="nav-btn" type="button"><b>Settings</b><span>Graphics, aim, sound</span></button>
     </nav>
   </div>
@@ -403,18 +438,28 @@ button.wallet:active .chip { border-color: var(--accent); }
 </section>
 
 <section id="screen-armory" class="screen" hidden>
-  <div class="panel wide armory">
-    <div class="armory-left">
-      <div class="panel-head"><h2>Armory</h2><div class="chip"><b>$</b><span class="cash-now">0</span></div></div>
-      <canvas id="armory-rifle" aria-label="The equipped rifle, turning slowly. Drag to turn it."></canvas>
-      <div class="rifle-tabs" id="rifle-tabs"></div>
-      <p class="rifle-desc" id="rifle-desc"></p>
-      <button id="rifle-action" class="btn btn-primary" type="button">Equipped</button>
+  <div class="panel wide store">
+    <div class="store-head">
+      <button id="btn-armory-back" class="btn btn-quiet" type="button">Back</button>
+      <h2>Armory</h2>
+      <div class="store-tabs" role="tablist" aria-label="Store">
+        <button id="store-tab-rifles" class="store-tab" type="button" role="tab" aria-selected="true" aria-controls="store-rifles">Rifles</button>
+        <button id="store-tab-gear" class="store-tab" type="button" role="tab" aria-selected="false" aria-controls="store-gear">Gear</button>
+      </div>
+      <div class="chip"><b>$</b><span class="cash-now">0</span></div>
     </div>
-    <div class="armory-right">
-      <ul class="upgrades" id="upgrade-list"></ul>
-      <div class="actions row"><button id="btn-armory-back" class="btn btn-quiet" type="button">Back</button></div>
+    <div class="store-body store-rifles" id="store-rifles" role="tabpanel">
+      <ul class="rifle-list scroll-y" id="rifle-tabs" aria-label="Rifles"></ul>
+      <div class="rifle-detail">
+        <canvas id="armory-rifle" aria-label="The selected rifle, turning slowly. Drag to turn it."></canvas>
+        <div class="rifle-title"><b id="rifle-name"></b><span id="rifle-calibre"></span></div>
+        <p class="rifle-trait" id="rifle-trait"></p>
+        <div class="stat-bars" id="rifle-bars"></div>
+        <button id="rifle-action" class="btn btn-primary" type="button">Equipped</button>
+      </div>
+      <ul class="upgrades scroll-y" id="upgrade-list"></ul>
     </div>
+    <div class="store-body store-gear scroll-y" id="store-gear" role="tabpanel" hidden></div>
   </div>
 </section>
 
@@ -486,6 +531,8 @@ button.wallet:active .chip { border-color: var(--accent); }
         <a href="https://github.com/microsoft/Microsoft-Rocketbox" target="_blank" rel="noopener">github.com/microsoft/Microsoft-Rocketbox</a></p>
       <h3>Models (CC BY 4.0)</h3>
       <p>Lowpoly Sedan &amp; Wagon by Han66st. Low Poly &amp; Game Ready Traffic Light by YourLocalJavaCarDealer. Tree low poly lowpoly by 00amza. Bullet by RoutineStudio. All from Sketchfab, licensed under <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a>.</p>
+      <h3>Armory rifles (test build, CC BY 4.0)</h3>
+      <p>Rifle models by dan741vlasov, WillyG99, valterjherson1, tnnv and sannf4, from Sketchfab under <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a>, shown under invented names. First-person hands and rifle ("sniper animated") by bumstrum, CC BY 4.0.</p>
       <h3>Rifle (placeholder, CC BY-NC-SA 4.0)</h3>
       <p>L11A3/AWP/AWM by Aronvctr, Sketchfab. Non-commercial licence, used in test builds only.</p>
       <h3>Environment (CC0)</h3>

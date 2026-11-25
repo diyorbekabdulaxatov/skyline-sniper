@@ -10,6 +10,7 @@ export function createHud() {
     timer: $('hud-timer'),
     wind: $('hud-wind'),
     windArrow: $('hud-wind-arrow'),
+    windHold: $('hud-wind-hold'),
     range: $('hud-range'),
     ammo: $('hud-ammo'),
     status: $('hud-status'),
@@ -59,6 +60,19 @@ export function createHud() {
     wind(w) {
       set('wind', el.wind, Math.abs(w).toFixed(1) + ' m/s');
       set('windArrow', el.windArrow, w >= 0 ? '→' : '←');
+    },
+    /**
+     * Wind meter: how far to hold into the wind at the rangefinder distance, in mils. undefined
+     * hides it (no wind meter), null shows dashes (no range).
+     * @param {number | null | undefined} mils positive holds right
+     */
+    windHold(mils) {
+      if (!el.windHold) return;
+      const text = mils === undefined ? '' : mils === null ? 'hold --' : Math.abs(mils) < 0.05
+        ? 'hold 0.0' : 'hold ' + Math.abs(mils).toFixed(1) + (mils > 0 ? ' R' : ' L');
+      set('windHold', el.windHold, text);
+      const hidden = mils === undefined;
+      if (el.windHold.hidden !== hidden) el.windHold.hidden = hidden;
     },
     /** @param {number | null} m */
     range(m) {

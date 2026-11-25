@@ -9,7 +9,11 @@ import { MISSIONS, missionById } from './missions.js';
 import { SCENES } from './scenes/index.js';
 import { loadSettings, saveSettings, loadBest, saveBest, resetBest } from './settings.js';
 import { loadProgress, saveProgress, resetProgress, levelOf, rewardFor, levelBonus } from './progress.js';
-import { RIFLES, UPGRADES, upgradeLevel, nextPrice, buyUpgrade, loadoutFor, rifleState, buyRifle, equipRifle, ownsRifle } from './armory.js';
+import {
+  RIFLES, UPGRADES, GEAR, EXTMAG_ROUNDS, upgradeLevel, nextPrice, buyUpgrade, loadoutFor, rifleState, buyRifle,
+  equipRifle, ownsRifle, gearState, buyGear, ownsGear, statBars
+} from './armory.js';
+import { KESTREL } from './ballistics.js';
 import { createArmoryView } from './armory-view.js';
 
 const $ = (id) => /** @type {HTMLElement} */ (document.getElementById(id));
@@ -126,13 +130,44 @@ function showCash() {
 
 /** The rifle shown in the Armory (owned or not); starts on the equipped one. */
 let armoryRifle = progress.rifle;
+/** The store tab on show: rifles or gear. */
+let storeTab = 'rifles';
+
+const money = (n) => '$' + n.toLocaleString('en-US');
+
+/** After any purchase: save, refresh the store, the cash chips and the menu wallet. */
+function afterPurchase() {
+  saveProgress(progress);
+  audio.unlock();
+  renderArmory();
+  showCash();
+  showWallet();
+}
 
 function renderArmory() {
+  const rifles = storeTab === 'rifles';
+  $('store-rifles').hidden = !rifles;
+  $('store-gear').hidden = rifles;
+  $('store-tab-rifles').setAttribute('aria-selected', String(rifles));
+  $('store-tab-gear').setAttribute('aria-selected', String(!rifles));
+  if (rifles) renderRifles();
+  else renderGear();
+}
+
+function setStoreTab(tab) {
+  storeTab = tab;
+  renderArmory();
+}
+$('store-tab-rifles').addEventListener('click', () => setStoreTab('rifles'));
+$('store-tab-gear').addEventListener('click', () => setStoreTab('gear'));
+
+function renderRifles() {
   const level = levelOf(progress.xp).level;
   const tabs = $('rifle-tabs');
   tabs.textContent = '';
   for (const r of RIFLES) {
     const st = rifleState(progress, r, level);
+    const li = document.createElement('li');
     const b = document.createElement('button');
     b.type = 'button';
     b.className = 'rifle-tab';
@@ -140,36 +175,79 @@ function renderArmory() {
     const name = document.createElement('b');
     name.textContent = r.name;
     const sub = document.createElement('span');
-    sub.textContent = st.state === 'equipped' ? 'Equipped' : st.state === 'owned' ? 'Owned' : 'Level ' + r.unlock.level + ' · $' + r.unlock.price.toLocaleString('en-US');
+    if (st.state === 'equipped') {
+      sub.textContent = 'Equipped';
+      sub.className = 'equipped';
+    } else if (st.state === 'owned') {
+      sub.textContent = 'Owned';
+    } else {
+      sub.textContent = (level < r.unlock.level ? 'Level ' + r.unlock.level + ' · ' : '') + money(r.unlock.price);
+      if (st.state === 'locked') sub.className = 'locked';
+    }
     b.append(name, sub);
     b.addEventListener('click', () => {
       armoryRifle = r.id;
-      renderArmory();
+      renderRifles();
     });
-    tabs.appendChild(b);
+    li.appendChild(b);
+    tabs.appendChild(li);
   }
+
   const rifle = RIFLES.find((r) => r.id === armoryRifle) || RIFLES[0];
   const st = rifleState(progress, rifle, level);
-  $('rifle-desc').textContent = rifle.calibre + '. ' + rifle.description;
+  armoryView.setModel(rifle.model);
+  $('rifle-name').textContent = rifle.name;
+  $('rifle-calibre').textContent = rifle.calibre;
+  const trait = $('rifle-trait');
+  trait.textContent = '';
+  const tb = document.createElement('b');
+  tb.textContent = rifle.trait.name + ': ';
+  trait.append(tb, rifle.trait.text);
+
+  const bars = statBars(rifle);
+  const extra = ownsGear(progress, 'extmag') ? EXTMAG_ROUNDS : 0;
+  const barList = [
+    ['Power', bars.power, Math.round((rifle.stats.velocity ?? KESTREL.velocity)) + ' m/s'],
+    ['Stability', bars.stability, ''],
+    ['Fire rate', bars.fireRate, (rifle.stats.boltTime ?? KESTREL.boltTime) + ' s'],
+    ['Magazine', bars.magazine, bars.rounds + (extra ? '+' + extra : '') + ' rds']
+  ];
+  const barsEl = $('rifle-bars');
+  barsEl.textContent = '';
+  for (const [label, value, note] of barList) {
+    const d = document.createElement('div');
+    d.className = 'bar';
+    const top = document.createElement('span');
+    const l = document.createElement('span');
+    l.textContent = String(label);
+    const n = document.createElement('span');
+    n.textContent = String(note);
+    top.append(l, n);
+    const track = document.createElement('i');
+    const fill = document.createElement('em');
+    fill.style.width = Math.round(Number(value) * 100) + '%';
+    track.appendChild(fill);
+    d.append(top, track);
+    barsEl.appendChild(d);
+  }
+
   const action = /** @type {HTMLButtonElement} */ ($('rifle-action'));
   action.disabled = st.state === 'equipped' || st.state === 'locked';
   action.textContent = st.state === 'equipped' ? 'Equipped' : st.state === 'owned' ? 'Equip' :
-    st.state === 'buy' ? 'Buy $' + rifle.unlock.price.toLocaleString('en-US') : st.reason;
+    st.state === 'buy' ? 'Buy ' + money(rifle.unlock.price) : st.reason;
   action.onclick = () => {
     const ok = st.state === 'buy' ? buyRifle(progress, rifle, level) : st.state === 'owned' ? equipRifle(progress, rifle.id) : false;
-    if (!ok) return;
-    saveProgress(progress);
-    audio.unlock();
-    renderArmory();
-    showCash();
-    showWallet();
+    if (ok) afterPurchase();
   };
+
   const list = $('upgrade-list');
   list.textContent = '';
   if (!ownsRifle(progress, rifle.id)) {
     const li = document.createElement('li');
     li.className = 'upgrade-note';
-    li.textContent = 'Buy the ' + rifle.name + ' to upgrade it. Upgrades belong to each rifle.';
+    const h = document.createElement('b');
+    h.textContent = rifle.name;
+    li.append(h, rifle.description + ' Buy it to upgrade it: upgrades belong to each rifle.');
     list.appendChild(li);
     return;
   }
@@ -186,7 +264,7 @@ function renderArmory() {
     value.textContent = u.format(u.values[lv]);
     if (price !== null) {
       const next = document.createElement('em');
-      next.textContent = '  → ' + u.format(u.values[lv + 1]);
+      next.textContent = ' → ' + u.format(u.values[lv + 1]);
       value.appendChild(next);
     }
     const pips = document.createElement('div');
@@ -203,24 +281,49 @@ function renderArmory() {
       buy.textContent = 'Max';
       buy.disabled = true;
     } else {
-      buy.textContent = '$' + price.toLocaleString('en-US');
+      buy.textContent = money(price);
       buy.disabled = progress.cash < price;
-      buy.title = progress.cash < price ? 'Earn $' + (price - progress.cash).toLocaleString('en-US') + ' more' : 'Upgrade ' + u.name;
+      buy.title = progress.cash < price ? 'Earn ' + money(price - progress.cash) + ' more' : 'Upgrade ' + u.name;
       buy.addEventListener('click', () => {
-        if (!buyUpgrade(progress, rifle.id, u)) return;
-        saveProgress(progress);
-        audio.unlock();
-        renderArmory();
-        showCash();
-        showWallet();
+        if (buyUpgrade(progress, rifle.id, u)) afterPurchase();
       });
     }
     li.append(name, buy, value, pips);
     list.appendChild(li);
   }
 }
+
+function renderGear() {
+  const level = levelOf(progress.xp).level;
+  const grid = $('store-gear');
+  grid.textContent = '';
+  for (const g of GEAR) {
+    const st = gearState(progress, g, level);
+    const card = document.createElement('div');
+    card.className = 'gear-card' + (st.state === 'owned' ? ' owned' : '');
+    const h = document.createElement('h3');
+    h.textContent = g.name;
+    const p = document.createElement('p');
+    p.textContent = g.effect;
+    const meta = document.createElement('div');
+    meta.className = 'meta' + (st.state === 'owned' ? ' owned' : '');
+    meta.textContent = st.state === 'owned' ? 'Owned · works with every rifle'
+      : (g.level > 1 ? 'Level ' + g.level + ' · ' : '') + money(g.price) + ' · one-time';
+    const buy = document.createElement('button');
+    buy.type = 'button';
+    buy.className = 'btn ' + (st.state === 'owned' ? 'btn-quiet' : 'btn-primary');
+    buy.disabled = st.state !== 'buy';
+    buy.textContent = st.state === 'owned' ? 'Owned' : st.state === 'buy' ? 'Buy ' + money(g.price) : st.reason;
+    buy.addEventListener('click', () => {
+      if (buyGear(progress, g, level)) afterPurchase();
+    });
+    card.append(h, p, meta, buy);
+    grid.appendChild(card);
+  }
+}
 $('btn-nav-armory').addEventListener('click', () => {
   armoryRifle = progress.rifle;
+  storeTab = 'rifles';
   renderArmory();
   showCash();
   show('armory');
@@ -255,7 +358,8 @@ function renderProfile() {
     ['Longest kill', st.bestDistance ? Math.round(st.bestDistance) + ' m' : '---'],
     ['Earned', '$' + st.earned.toLocaleString('en-US')],
     ['Spent', '$' + st.spent.toLocaleString('en-US')],
-    ['Rifle', rifle.name]
+    ['Rifle', rifle.name],
+    ['Gear', GEAR.filter((g) => ownsGear(progress, g.id)).length + ' / ' + GEAR.length]
   ];
   const grid = $('profile-stats');
   grid.textContent = '';

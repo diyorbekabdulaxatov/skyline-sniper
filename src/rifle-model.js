@@ -29,15 +29,17 @@ function samplePoints(root, max) {
 
 /**
  * A fitted rifle: a Group whose child is the model, barrel along -z, `length` metres long,
- * centred on the origin. `clone` must be true when the same model is shown twice.
+ * centred on the origin. `clone` must be true when the same model is shown twice. `url` is
+ * tried first; when it is missing the default models stand in. Returns null when none loads.
  * @param {number} length
  * @param {boolean} [clone]
+ * @param {string} [url]
  */
-export async function loadFittedRifle(length, clone) {
+export async function loadFittedRifle(length, clone, url) {
   let gltf = null;
-  for (const url of MODELS) {
+  for (const u of url ? [url, ...MODELS] : MODELS) {
     try {
-      gltf = await loadGLTF(url);
+      gltf = await loadGLTF(u);
       break;
     } catch (err) {
       /* try the next model */
@@ -89,7 +91,10 @@ export async function loadFittedRifle(length, clone) {
   const wrap = new THREE.Group();
   wrap.add(turn);
   const s = measure(wrap).getSize(new THREE.Vector3());
-  wrap.scale.setScalar(length / Math.max(s.x, s.y, s.z));
+  const longest = Math.max(s.x, s.y, s.z);
+  // An empty or broken model: let the caller fall back to the default rifle.
+  if (!(longest > 0) || !Number.isFinite(longest)) return null;
+  wrap.scale.setScalar(length / longest);
   const c = measure(wrap).getCenter(new THREE.Vector3());
   wrap.position.sub(c);
   const holder = new THREE.Group();

@@ -1,6 +1,6 @@
 // @ts-check
-// Player progress (the agent's account): cash, experience and level, owned rifles and upgrades,
-// and career statistics. Everything is earned only by playing (no paid currency).
+// Player progress (the agent's account): cash, experience and level, owned rifles, upgrades and
+// gear, and career statistics. Everything is earned only by playing (no paid currency).
 // Kept in localStorage; storage can be missing, so every access is guarded.
 
 const KEY = 'skyline.progress.v1';
@@ -9,37 +9,52 @@ const KEY = 'skyline.progress.v1';
  * @typedef {{ earned: number, spent: number, shots: number, wins: number, heads: number,
  *   bestDistance: number }} Stats
  * @typedef {{ cash: number, xp: number, contracts: number, tutorialDone: boolean, rifle: string,
- *   owned: string[], upgrades: Record<string, Record<string, number>>, stats: Stats }} Progress
+ *   owned: string[], upgrades: Record<string, Record<string, number>>, gear: string[],
+ *   stats: Stats }} Progress
  */
 
 /** @returns {Progress} */
 function fresh() {
   return {
-    cash: 0, xp: 0, contracts: 0, tutorialDone: false, rifle: 'harrier', owned: ['harrier'], upgrades: {},
+    cash: 0, xp: 0, contracts: 0, tutorialDone: false, rifle: 'harrier', owned: ['harrier'], upgrades: {}, gear: [],
     stats: { earned: 0, spent: 0, shots: 0, wins: 0, heads: 0, bestDistance: 0 }
   };
 }
 
 /** @returns {Progress} */
 export function loadProgress() {
-  const base = fresh();
   try {
     const raw = localStorage.getItem(KEY);
-    if (!raw) return base;
-    const saved = JSON.parse(raw);
-    /** @type {Progress} */
-    const p = { ...base, ...saved, stats: { ...base.stats, ...(saved.stats || {}) } };
-    // Older saves: no owned list; the starting rifle is always owned and equipped rifles too.
-    const owned = new Set(Array.isArray(saved.owned) ? saved.owned : []);
-    owned.add('harrier');
-    if (!owned.has(p.rifle)) p.rifle = 'harrier';
-    p.owned = [...owned];
-    if (!Number.isFinite(p.cash) || p.cash < 0) p.cash = 0;
-    if (!Number.isFinite(p.xp) || p.xp < 0) p.xp = 0;
-    return p;
+    if (!raw) return fresh();
+    return migrateProgress(JSON.parse(raw));
   } catch (err) {
-    return base;
+    return fresh();
   }
+}
+
+/**
+ * A saved account brought up to date: missing fields get their defaults, and older saves
+ * without an owned rifle list or gear list are repaired.
+ * @param {any} saved
+ * @returns {Progress}
+ */
+export function migrateProgress(saved) {
+  const base = fresh();
+  if (!saved || typeof saved !== 'object') return base;
+  /** @type {Progress} */
+  const p = { ...base, ...saved, stats: { ...base.stats, ...(saved.stats || {}) } };
+  // Older saves: no owned list; the starting rifle is always owned and equipped rifles too.
+  const owned = new Set(Array.isArray(saved.owned) ? saved.owned.filter((x) => typeof x === 'string') : []);
+  owned.add('harrier');
+  if (!owned.has(p.rifle)) p.rifle = 'harrier';
+  p.owned = [...owned];
+  // Saves from before the store had gear: none owned.
+  p.gear = Array.isArray(saved.gear) ? [...new Set(saved.gear.filter((x) => typeof x === 'string'))] : [];
+  if (!p.upgrades || typeof p.upgrades !== 'object') p.upgrades = {};
+  if (!Number.isFinite(p.cash) || p.cash < 0) p.cash = 0;
+  if (!Number.isFinite(p.xp) || p.xp < 0) p.xp = 0;
+  if (!Number.isFinite(p.stats.spent) || p.stats.spent < 0) p.stats.spent = 0;
+  return p;
 }
 
 /** @param {Progress} p */

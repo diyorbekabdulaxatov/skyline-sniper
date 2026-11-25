@@ -9,7 +9,8 @@
  * @param {number} h CSS pixels
  * @param {number} dpr
  * @param {number} fovDeg vertical field of view
- * @param {{ onTarget?: boolean, zoom?: number }} [opts]
+ * @param {{ onTarget?: boolean, zoom?: number, aimPoint?: { x: number, y: number } | null }} [opts]
+ *   aimPoint: ballistic computer impact point, in mils right and down from the centre
  */
 export function drawScope(ctx, w, h, dpr, fovDeg, opts = {}) {
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
@@ -117,6 +118,24 @@ export function drawScope(ctx, w, h, dpr, fovDeg, opts = {}) {
         ctx.moveTo(cx - 2.5, cy + hd); ctx.lineTo(cx + 2.5, cy + hd);
         ctx.stroke();
       }
+    }
+  }
+
+  // Ballistic computer: a small cyan ring and dot where the bullet will land.
+  const ap = opts.aimPoint;
+  if (ap && Number.isFinite(ap.x) && Number.isFinite(ap.y)) {
+    const px = cx + ap.x * pxPerMil;
+    const py = cy + ap.y * pxPerMil;
+    if (Math.hypot(px - cx, py - cy) < R - 8) {
+      ctx.strokeStyle = 'rgba(70, 210, 255, 0.95)';
+      ctx.fillStyle = 'rgba(70, 210, 255, 0.95)';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.arc(px, py, 5, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(px, py, 1.8, 0, Math.PI * 2);
+      ctx.fill();
     }
   }
 

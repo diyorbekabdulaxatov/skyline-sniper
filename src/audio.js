@@ -84,9 +84,16 @@ export function createAudio() {
       enabled = on;
       if (master) master.gain.value = on ? 0.8 : 0;
     },
-    shot() {
+    /** @param {boolean} [suppressed] a muffled cough instead of the full report */
+    shot(suppressed) {
       if (!ensure()) return;
       const t = ctx.currentTime;
+      if (suppressed) {
+        burst(t, 0.05, 'bandpass', 1400, 0.45);
+        burst(t, 0.18, 'lowpass', 500, 0.35);
+        thump(t, 70, 40, 0.12, 0.35);
+        return;
+      }
       burst(t, 0.08, 'highpass', 2500, 0.9);
       burst(t, 0.7, 'lowpass', 700, 0.9);
       thump(t, 95, 36, 0.32, 0.9);
